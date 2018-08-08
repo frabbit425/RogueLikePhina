@@ -1,7 +1,7 @@
 {
     "frame": {
-        "width": 32,
-        "height": 32,
+        "width": 64,
+        "height": 64,
         "cols": 6,
         "rows": 3
     },
