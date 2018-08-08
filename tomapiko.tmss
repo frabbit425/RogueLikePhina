@@ -16,12 +16,12 @@
       "next": "fly",
       "frequency": 4
     },
-    "front": {
+    "up": {
       "frames": [6, 7, 8, 7],
       "next": "front",
       "frequency": 4
     },
-    "back": {
+    "down": {
       "frames": [9, 10, 11, 10],
       "next": "back",
       "frequency": 4
