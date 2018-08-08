@@ -1,19 +1,50 @@
 {
-    //画像情報
-    "frame": {
-        "width": 64,    //１フレームの横幅
-        "height": 64,   //１フレームの縦幅
-        "cols": 6,      //横のフレーム数
-        "rows": 3       //縦のフレーム数
+  "frame": {
+    "width": 64,
+    "height": 64,
+    "cols": 6,
+    "rows": 3,
+  },
+  "animations" : {
+    "stopLeft": {
+      "frames": [13],
+      "next": "stopLeft",
+      "frequency": 3,
     },
-
-    //アニメーション情報
-    "animations" : {
-        "start": {              //アニメーション名
-            "frames": [0,1,2,3],//表示するフレーム番号を配列として並べる(０始まり)
-            "next": "start",    //アニメーション終了時、次のアニメーションを指定
-                                //ループさせたい場合は自分を指定する
-            "frequency": 5      //フレーム毎の間隔
-        }
-    }
+    "stopRight": {
+      "frames": [16],
+      "next": "stopRight",
+      "frequency": 3,
+    },
+    "stopDown": {
+      "frames": [7],
+      "next": "stopDown",
+      "frequency": 3,
+    },
+    "stopUp": {
+      "frames": [10],
+      "next": "stopUp",
+      "frequency": 3,
+    },
+    "walkLeft": {
+      "frames": [12,13,14,13,12,13,14,13],
+      "next": "stopLeft",
+      "frequency": 3,
+    },
+    "walkRight": {
+      "frames": [15,16,17,16,15,16,17,16],
+      "next": "stopRight",
+      "frequency": 3,
+    },
+    "walkDown": {
+      "frames": [6,7,8,7,6,7,8,7],
+      "next": "stopDown",
+      "frequency": 3,
+    },
+    "walkUp": {
+      "frames": [9,10,11,10,9,10,11,10],
+      "next": "stopUp",
+      "frequency": 3,
+    },
+  }
 }
