@@ -18,12 +18,12 @@
     },
     "down": {
       "frames": [6, 7, 8, 7],
-      "next": "up",
+      "next": "down",
       "frequency": 4
     },
     "up": {
       "frames": [9, 10, 11, 10],
-      "next": "down",
+      "next": "up",
       "frequency": 4
     },
     "left": {
