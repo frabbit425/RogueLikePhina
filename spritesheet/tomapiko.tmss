@@ -27,7 +27,7 @@
       "frequency": 4
     },
     "left": {
-      "frames": [12, 13, 14, 13],
+      "frames": [13, 12, 13, 14],
       "next": "left",
       "frequency": 4
     },
