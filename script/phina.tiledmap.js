@@ -445,8 +445,7 @@ phina.define("phina.asset.TiledMap", {
             if (props.src) {
                 t.image = props.src;
             } else {
-                let im = tileset.getElementsByTagName('image');
-                t.image = im[0].getAttribute('source');
+                t.image = tileset.getElementsByTagName('image')[0].getAttribute('source');
             }
             //透過色設定取得
             t.trans = tileset.getElementsByTagName('image')[0].getAttribute('trans');
