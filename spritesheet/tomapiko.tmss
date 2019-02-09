@@ -26,14 +26,14 @@
       "next": "up",
       "frequency": 4
     },
-    "right": {
+    "left": {
       "frames": [13, 12, 13, 14],
-      "next": "right",
+      "next": "left",
       "frequency": 4
     },
-    "left": {
+    "right": {
       "frames": [16, 15, 16, 17],
-      "next": "left",
+      "next": "right",
       "frequency": 4
     },
     "damage": {
