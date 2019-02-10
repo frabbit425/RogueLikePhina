@@ -446,6 +446,7 @@ phina.define("phina.asset.TiledMap", {
                 t.image = props.src;
             } else {
 				let tsxfname = tileset.getAttribute("source");
+				console.log(tsxfname);
         		var xml = new XMLHttpRequest();
         		xml.open('GET', tsxfname);
         		xml.onreadystatechange = function() {
@@ -453,12 +454,14 @@ phina.define("phina.asset.TiledMap", {
                 		if ([200, 201, 0].indexOf(xml.status) !== -1) {
                     		var dataa = xml.responseText;
                     		dataa = (new DOMParser()).parseFromString(dataa, "text/xml");
+							t.image = dataa.getElementsByTagName('tileset')[0].getElementsByTagName('image')[0].getAttribute('source');
+							console.log(dataa);
 //                    		resolve(self);
                 		}
             		}
         		};
         		xml.send(null);
-                t.image = self.data.getElementsByTagName('tileset')[0].getElementsByTagName('image')[0].getAttribute('source');
+                
             }
             //透過色設定取得
 //            t.trans = tileset.getElementsByTagName('image')[0].getAttribute('trans');
