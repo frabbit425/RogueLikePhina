@@ -445,15 +445,28 @@ phina.define("phina.asset.TiledMap", {
             if (props.src) {
                 t.image = props.src;
             } else {
-                t.image = tileset.getElementsByTagName('image')[0].getAttribute('source');
+				let tsxfname = tileset.getAttribute("source");
+        		var xml = new XMLHttpRequest();
+        		xml.open('GET', tsxfname);
+        		xml.onreadystatechange = function() {
+            		if (xml.readyState === 4) {
+                		if ([200, 201, 0].indexOf(xml.status) !== -1) {
+                    		var dataa = xml.responseText;
+                    		dataa = (new DOMParser()).parseFromString(dataa, "text/xml");
+//                    		resolve(self);
+                		}
+            		}
+        		};
+        		xml.send(null);
+                t.image = self.data.getElementsByTagName('tileset')[0].getElementsByTagName('image')[0].getAttribute('source');
             }
             //透過色設定取得
-            t.trans = tileset.getElementsByTagName('image')[0].getAttribute('trans');
-            if (t.trans) {
-                t.transR = parseInt(t.trans.substring(0, 2), 16);
-                t.transG = parseInt(t.trans.substring(2, 4), 16);
-                t.transB = parseInt(t.trans.substring(4, 6), 16);
-            }
+//            t.trans = tileset.getElementsByTagName('image')[0].getAttribute('trans');
+//            if (t.trans) {
+//                t.transR = parseInt(t.trans.substring(0, 2), 16);
+//                t.transG = parseInt(t.trans.substring(2, 4), 16);
+//                t.transB = parseInt(t.trans.substring(4, 6), 16);
+//            }
 
             data.push(t);
         });
