@@ -32,6 +32,8 @@ phina.define("phina.asset.TiledMap", {
      */
     layers: null,
 
+    main: null,
+
     init: function() {
         this.superInit();
     },
@@ -213,6 +215,8 @@ phina.define("phina.asset.TiledMap", {
      * @private
      */
     _parse: function(data) {
+        main = this;
+        
         //タイル属性情報取得
         var map = data.getElementsByTagName('map')[0];
         var attr = this._attrToJSON(map);
@@ -220,8 +224,11 @@ phina.define("phina.asset.TiledMap", {
         this.properties = this._propertiesToJSON(map);
 
         //タイルセット取得
-        this.tilesets = this._parseTilesets(data);
-
+        this._parseTilesets(data);
+        
+        
+    },
+    readedTilesets: function(data){
         //タイルセット情報補完
         var defaultAttr = {
             tilewidth: 32,
@@ -229,24 +236,24 @@ phina.define("phina.asset.TiledMap", {
             spacing: 0,
             margin: 0,
         };
-        this.tilesets.chips = [];
-        for (var i = 0; i < this.tilesets.length; i++) {
+        main.tilesets.chips = [];
+        for (var i = 0; i < main.tilesets.length; i++) {
             //タイルセット属性情報取得
             var attr = this._attrToJSON(data.getElementsByTagName('tileset')[i]);
             attr.$safe(defaultAttr);
             attr.firstgid--;
-            this.tilesets[i].$extend(attr);
+            main.tilesets[i].$extend(attr);
 
             //マップチップリスト作成
             var t = this.tilesets[i];
-            this.tilesets[i].mapChip = [];
+            main.tilesets[i].mapChip = [];
             for (var r = attr.firstgid; r < attr.firstgid+attr.tilecount; r++) {
                 var chip = {
                     image: t.image,
                     x: ((r - attr.firstgid) % t.columns) * (t.tilewidth + t.spacing) + t.margin,
                     y: Math.floor((r - attr.firstgid) / t.columns) * (t.tileheight + t.spacing) + t.margin,
                 }.$safe(attr);
-                this.tilesets.chips[r] = chip;
+                main.tilesets.chips[r] = chip;
             }
         }
 
@@ -256,7 +263,6 @@ phina.define("phina.asset.TiledMap", {
         //イメージデータ読み込み
         this._checkImage();
     },
-
     /**
      * @method _checkImage
      * アセットに無いイメージデータをチェックして読み込みを行います。
@@ -273,9 +279,9 @@ phina.define("phina.asset.TiledMap", {
         for (var i = 0; i < this.tilesets.length; i++) {
             var obj = {
                 image: this.tilesets[i].image,
-                transR: this.tilesets[i].transR,
-                transG: this.tilesets[i].transG,
-                transB: this.tilesets[i].transB,
+//                transR: this.tilesets[i].transR,
+//                transG: this.tilesets[i].transG,
+//                transB: this.tilesets[i].transB,
             };
             imageSource.push(obj);
         }
@@ -313,18 +319,18 @@ phina.define("phina.asset.TiledMap", {
             loader.load(assets);
             loader.on('load', function(e) {
                 //透過色設定反映
-                loadImage.forEach(function(elm) {
-                    var image = phina.asset.AssetManager.get('image', elm.image);
-                    if (elm.transR !== undefined) {
-                        var r = elm.transR, g = elm.transG, b = elm.transB;
-                        image.filter(function(pixel, index, x, y, bitmap) {
-                            var data = bitmap.data;
-                            if (pixel[0] == r && pixel[1] == g && pixel[2] == b) {
-                                data[index+3] = 0;
-                            }
-                        });
-                    }
-                });
+//                loadImage.forEach(function(elm) {
+//                    var image = phina.asset.AssetManager.get('image', elm.image);
+//                    if (elm.transR !== undefined) {
+//                        var r = elm.transR, g = elm.transG, b = elm.transB;
+//                        image.filter(function(pixel, index, x, y, bitmap) {
+//                            var data = bitmap.data;
+//                            if (pixel[0] == r && pixel[1] == g && pixel[2] == b) {
+//                                data[index+3] = 0;
+//                            }
+//                        });
+//                    }
+//                });
                 //読み込み終了
                 that._resolve(that);
             }.bind(this));
@@ -434,11 +440,12 @@ phina.define("phina.asset.TiledMap", {
      * 内部で使用している関数です。
      * @private
      */
-    _parseTilesets: function(xml) {
+    _parseTilesets: function(xml1) {
         var each = Array.prototype.forEach;
         var self = this;
         var data = [];
-        var tilesets = xml.getElementsByTagName('tileset');
+        var tilesets = xml1.getElementsByTagName('tileset');
+        main.tilesets = [];
         each.call(tilesets, function(tileset) {
             var t = {};
             var props = self._propertiesToJSON(tileset);
@@ -455,7 +462,9 @@ phina.define("phina.asset.TiledMap", {
                     		var dataa = xml.responseText;
                     		dataa = (new DOMParser()).parseFromString(dataa, "text/xml");
 							t.image = dataa.getElementsByTagName('tileset')[0].getElementsByTagName('image')[0].getAttribute('source');
-//							console.log(dataa);
+                            main.tilesets.push(t);
+                            main.readedTilesets(xml1);
+                            
 //                    		resolve(self);
                 		}
             		}
@@ -470,10 +479,7 @@ phina.define("phina.asset.TiledMap", {
 //                t.transG = parseInt(t.trans.substring(2, 4), 16);
 //                t.transB = parseInt(t.trans.substring(4, 6), 16);
 //            }
-
-            data.push(t);
         });
-        return data;
     },
 
     /**
