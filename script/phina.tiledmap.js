@@ -446,7 +446,7 @@ phina.define("phina.asset.TiledMap", {
                 t.image = props.src;
             } else {
 				let tsxfname = tileset.getAttribute("source");
-				console.log(tsxfname);
+//				console.log(tsxfname);
         		var xml = new XMLHttpRequest();
         		xml.open('GET', tsxfname);
         		xml.onreadystatechange = function() {
@@ -455,7 +455,7 @@ phina.define("phina.asset.TiledMap", {
                     		var dataa = xml.responseText;
                     		dataa = (new DOMParser()).parseFromString(dataa, "text/xml");
 							t.image = dataa.getElementsByTagName('tileset')[0].getElementsByTagName('image')[0].getAttribute('source');
-							console.log(dataa);
+//							console.log(dataa);
 //                    		resolve(self);
                 		}
             		}
