@@ -9,32 +9,32 @@
     "stand": {
       "frames": [0],
       "next": "stand",
-      "frequency": 4
+      "frequency": 8
     },
     "fly": {
       "frames": [1, 2, 3],
       "next": "fly",
-      "frequency": 4
+      "frequency": 8
     },
     "down": {
       "frames": [7, 6, 7, 8],
       "next": "down",
-      "frequency": 4
+      "frequency": 8
     },
     "up": {
       "frames": [10, 9, 10, 11],
       "next": "up",
-      "frequency": 4
+      "frequency": 8
     },
     "right": {
       "frames": [13, 12, 13, 14],
       "next": "right",
-      "frequency": 4
+      "frequency": 8
     },
     "left": {
       "frames": [16, 15, 16, 17],
       "next": "left",
-      "frequency": 4
+      "frequency": 8
     },
     "damage": {
       "frames": [4]
