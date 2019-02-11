@@ -225,8 +225,6 @@ phina.define("phina.asset.TiledMap", {
 
         //タイルセット取得
         this._parseTilesets(data);
-        
-        
     },
     readedTilesets: function(data){
         //タイルセット情報補完
@@ -461,7 +459,7 @@ phina.define("phina.asset.TiledMap", {
                 		if ([200, 201, 0].indexOf(xml.status) !== -1) {
                     		var dataa = xml.responseText;
                     		dataa = (new DOMParser()).parseFromString(dataa, "text/xml");
-							t.image = dataa.getElementsByTagName('tileset')[0].getElementsByTagName('image')[0].getAttribute('source');
+							t.image = this.path+dataa.getElementsByTagName('tileset')[0].getElementsByTagName('image')[0].getAttribute('source');
                             main.tilesets.push(t);
                             main.readedTilesets(xml1);
                             
@@ -472,7 +470,7 @@ phina.define("phina.asset.TiledMap", {
         		xml.send(null);
                 
             }
-            ///透過色設定取得
+            //透過色設定取得
 //            t.trans = tileset.getElementsByTagName('image')[0].getAttribute('trans');
 //            if (t.trans) {
 //                t.transR = parseInt(t.trans.substring(0, 2), 16);
@@ -650,3 +648,4 @@ phina.asset.AssetLoader.assetLoadFunctions.tmx = function(key, path) {
     var tmx = phina.asset.TiledMap();
     return tmx.load(path);
 };
+
