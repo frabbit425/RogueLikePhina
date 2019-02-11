@@ -146,9 +146,9 @@ phina.define("Field", {
     // 親クラス初期化
     this.superInit();
     this.main = m;
-    this.map = Array2D(TESTMAP, TESTMAPWIDTH, TESTMAPHEIGHT);
+//    this.map = Array2D(TESTMAP, TESTMAPWIDTH, TESTMAPHEIGHT);
     this.collision = Array2D(TESTMAP, TESTMAPWIDTH, TESTMAPHEIGHT);
-//    this.map = this.read("testmap", "floor");
+    this.map = this.read("testmap", "floor");
     this.create(this.map);
     this.camera = RectangleShape({
       width:DRAWSIZE,
