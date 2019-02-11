@@ -1,0 +1,35 @@
+{
+  "frame": {
+    "width": 64,
+    "height": 64,
+    "rows": 1,
+    "cols": 5
+  },
+  "animations": {
+    "grass": {
+      "frames": [0],
+      "next": "grass",
+      "frequency": 8
+    },
+    "soil": {
+      "frames": [1],
+      "next": "soil",
+      "frequency": 8
+    },
+    "sand": {
+      "frames": [2],
+      "next": "sand",
+      "frequency": 8
+    },
+    "water": {
+      "frames": [3],
+      "next": "water",
+      "frequency": 8
+    },
+    "stone": {
+      "frames": [4],
+      "next": "stone",
+      "frequency": 8
+    },
+  }
+}
