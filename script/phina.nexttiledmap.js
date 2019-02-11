@@ -229,8 +229,8 @@ phina.define("phina.asset.TiledMap", {
     readedTilesets: function(data){
         //タイルセット情報補完
         var defaultAttr = {
-            tilewidth: 32,
-            tileheight: 32,
+            tilewidth: 64,
+            tileheight: 64,
             spacing: 0,
             margin: 0,
         };
