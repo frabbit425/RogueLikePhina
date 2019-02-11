@@ -450,8 +450,8 @@ phina.define("phina.asset.TiledMap", {
             if (props.src) {
                 t.image = props.src;
             } else {
-				let tsxfname = tileset.getAttribute("source");
-//				console.log(tsxfname);
+			let tsxfname = main.path+tileset.getAttribute("source");
+//			console.log(tsxfname);
         		var xml = new XMLHttpRequest();
         		xml.open('GET', tsxfname);
         		xml.onreadystatechange = function() {
@@ -459,9 +459,9 @@ phina.define("phina.asset.TiledMap", {
                 		if ([200, 201, 0].indexOf(xml.status) !== -1) {
                     		var dataa = xml.responseText;
                     		dataa = (new DOMParser()).parseFromString(dataa, "text/xml");
-							t.image = this.path+dataa.getElementsByTagName('tileset')[0].getElementsByTagName('image')[0].getAttribute('source');
-                            main.tilesets.push(t);
-                            main.readedTilesets(xml1);
+				t.image = this.path+dataa.getElementsByTagName('tileset')[0].getElementsByTagName('image')[0].getAttribute('source');
+                            	main.tilesets.push(t);
+                            	main.readedTilesets(xml1);
                             
 //                    		resolve(self);
                 		}
