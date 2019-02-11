@@ -472,7 +472,7 @@ phina.define("phina.asset.TiledMap", {
         		xml.send(null);
                 
             }
-            //透過色設定取得
+            ///透過色設定取得
 //            t.trans = tileset.getElementsByTagName('image')[0].getAttribute('trans');
 //            if (t.trans) {
 //                t.transR = parseInt(t.trans.substring(0, 2), 16);
