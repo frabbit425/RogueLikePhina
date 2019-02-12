@@ -1,0 +1,25 @@
+{
+  "frame": {
+    "width": 100,
+    "height": 100,
+    "rows": 1,
+    "cols": 5
+  },
+  "animations": {
+    "grass": {
+      "frames": [0]
+    },
+    "soil": {
+      "frames": [1]
+    },
+    "sand": {
+      "frames": [2]
+    },
+    "water": {
+      "frames": [3]
+    },
+    "stone": {
+      "frames": [4]
+    }
+  }
+}
