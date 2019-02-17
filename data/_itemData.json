@@ -1,0 +1,13 @@
+[{"id":"","type":"","name":"","hp":null,"food":null,"atk":null,"range":null,"extra":"","extval":null,"buy":null,"sell":null,"sort":null,"detail":"","image":"","size":null},
+{"id":"FOOD1","type":"Food","name":"りんご","hp":null,"food":50,"atk":2,"range":null,"extra":"","extval":null,"buy":100,"sell":35,"sort":1,"detail":"おなかにたまる","image":"apple","size":0.4},
+{"id":"FOOD2","type":"Food","name":"おおきいりんご","hp":null,"food":100,"atk":4,"range":null,"extra":"","extval":null,"buy":300,"sell":105,"sort":2,"detail":"おなかいっぱいになる","image":"apple","size":0.6},
+{"id":"FOOD3","type":"Food","name":"かたいりんご","hp":null,"food":25,"atk":8,"range":null,"extra":"","extval":null,"buy":50,"sell":18,"sort":3,"detail":"たべにくい","image":"apple","size":0.3},
+{"id":"FOOD4","type":"Food","name":"どくりんご","hp":null,"food":25,"atk":2,"range":null,"extra":"poison","extval":null,"buy":600,"sell":210,"sort":4,"detail":"たべたらだめ","image":"apple","size":0.4},
+{"id":"PLANTS1","type":"Medicine","name":"よつば","hp":50,"food":10,"atk":-30,"range":null,"extra":"","extval":null,"buy":50,"sell":18,"sort":200,"detail":"けががなおる","image":"clover4","size":0.4},
+{"id":"PLANTS2","type":"Medicine","name":"おおきいよつば","hp":100,"food":20,"atk":-50,"range":null,"extra":"","extval":null,"buy":100,"sell":35,"sort":201,"detail":"げんきいっぱいになる","image":"clover4","size":0.6},
+{"id":"PLANTS1","type":"Medicine","name":"ちいさいよつば","hp":30,"food":5,"atk":-10,"range":null,"extra":"recover","extval":null,"buy":300,"sell":105,"sort":202,"detail":"ちょうしがよくなる","image":"clover4","size":0.3},
+{"id":"PLANTS1","type":"Medicine","name":"よつば？","hp":50,"food":10,"atk":-30,"range":null,"extra":"confuse","extval":null,"buy":800,"sell":300,"sort":203,"detail":"これはよつばなの？","image":"clover3","size":0.4},
+{"id":"BOX1","type":"Magic","name":"たからばこ","hp":null,"food":null,"atk":10,"range":null,"extra":"present","extval":null,"buy":100,"sell":18,"sort":500,"detail":"なにかな？","image":"box","size":0.4},
+{"id":"BOX1","type":"Magic","name":"おおきいたからばこ","hp":null,"food":null,"atk":20,"range":null,"extra":"present","extval":null,"buy":800,"sell":300,"sort":501,"detail":"いいものかな？","image":"box","size":0.6},
+{"id":"BOX2","type":"Magic","name":"びっくりばこ","hp":null,"food":null,"atk":10,"range":null,"extra":"random","extval":50,"buy":300,"sell":105,"sort":502,"detail":"なにがおこるかな？","image":"box","size":0.4},
+{"id":"BOX2","type":"Magic","name":"おおきいびっくりばこ","hp":null,"food":null,"atk":20,"range":null,"extra":"random","extval":100,"buy":1000,"sell":500,"sort":503,"detail":"うってよしつかってよし","image":"box","size":0.6}]
