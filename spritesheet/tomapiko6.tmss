@@ -12,23 +12,23 @@
     "fly": {
       "frames": [1, 2, 3],
       "next": "fly",
-      "frequency": 4
+      "frequency": 3
     },
     "down": {
       "frames": [7, 6, 7, 8, 7],
-      "frequency": 4
+      "frequency": 3
     },
     "up": {
       "frames": [10, 9, 10, 11, 10],
-      "frequency": 4
+      "frequency": 3
     },
     "right": {
       "frames": [13, 12, 13, 14, 13],
-      "frequency": 4
+      "frequency": 3
     },
     "left": {
       "frames": [16, 15, 16, 17, 16],
-      "frequency": 4
+      "frequency": 3
     },
     "damage": {
       "frames": [4]
