@@ -1,20 +1,2674 @@
 <!doctype html>
-
+ 
 <html>
   <head>
-    <meta charset='utf-8' />
+    <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, user-scalable=no" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta http-equiv="refresh" content="3;URL=http://runstant.com/FRabbit/projects/dd3e4c8e">
-    <title>Getting started | phina.js</title>
-    <!-- phina.js を読み込む -->
-    <script src='http://cdn.rawgit.com/phi-jp/phina.js/v0.2.0/build/phina.js'></script>
-    <script src='script/phina.tiledmap.js'></script>
-    <!-- メイン処理 -->
-    <script src='main.js'></script>
     
+    <title>ローグライクを作ってみるテスト</title>
+    <meta name="description" content="http://phinajs.com/" />
+    <script src="https://cdn.jsdelivr.net/npm/phina.js@0.2.2/build/phina.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/script/phina.tiledmap2.js"></script>
+    <style>*, *:before, *:after {
+  box-sizing: border-box; 
+}
+html {
+  font-size: 10px;
+}
+body {
+  color: #444;
+  background-color: hsl(0, 0%, 96%);
+}
+h1 {
+  font-size: 1.8rem;
+}
+label {
+  color: white;  
+  background-color: skyblue;
+  padding: 3px;
+}
+.btn-square {
+  position: relative;
+  display: inline-block;
+  padding: 2px;
+  text-decoration: none;
+  color: #FFF;
+  background: skyblue;/*色*/
+  border: solid 1px skyblue;/*線色*/
+  box-shadow: none;
+  text-shadow: none;
+  font-size: 10px;
+}
+.btn-square-little-rich:active {
+  /*押したとき*/
+  box-shadow: none;
+  text-shadow: none;
+}</style>
   </head>
   <body>
+    
+    <script>/*
+ * runstant
+ */
+phina.globalize();
 
+const eDir = {
+  Down: "down",
+  Left: "left",
+  Up: "up",
+  Right: "right",
+}
+/**
+ * 行動状態
+ */
+const eAct = {
+  KeyInput: 0, // キー入力待ち。もしくは待機中
+  // インベントリ
+  OpenInventory: 1,
+  CloseInventory: 2,
+  // アクション
+  ActBegin: 3, // 開始
+  Act: 4,      // 実行中
+  ActEnd: 5,   // 終了
+  // 移動
+  MoveBegin: 6, // 開始
+  Move: 7,      // 移動中
+  MoveEnd: 8,   // 完了
+
+  TurnEnd: 9,   // ターン終了
+}
+const eKey = {
+  OK: "z",
+  Cancel: "x",
+  Save: "s",
+  Load: "l",
+}
+//var mapchip = [0, 1, 2, 3, 4];
+const mapchip = ["grass", "soil", "sand", "water", "stone"];
+const DRAWSIZE = 64;
+const GRIDWIDTH = 14;
+const GRIDHEIGHT = 15;
+const TESTMAP =
+[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,
+0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,
+0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,
+0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,0,1,0,0,0,0,
+0,1,1,1,1,1,1,1,1,0,0,0,0,0,1,1,1,1,1,1,1,1,1,0,0,1,0,0,0,0,
+0,1,1,1,1,1,1,1,1,0,0,0,0,0,1,0,1,1,1,1,1,1,1,0,0,1,0,0,0,0,
+0,1,1,1,1,1,1,1,1,0,0,0,0,0,1,0,1,1,1,1,1,1,1,0,0,1,0,0,0,0,
+0,1,1,1,1,1,1,1,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,
+0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,
+0,0,0,0,1,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,0,
+0,0,0,0,1,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,0,
+0,0,0,0,1,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,0,
+0,0,0,0,1,1,1,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,0,
+0,0,0,0,0,0,1,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,0,
+0,0,0,0,0,0,1,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,0,
+0,0,0,0,0,0,1,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,0,
+0,1,1,1,1,1,1,1,1,1,0,0,0,1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,
+0,1,1,1,1,1,1,1,1,1,0,0,0,1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,
+0,1,1,1,1,1,1,1,1,1,0,0,0,1,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,0,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,
+0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,1,0,0,0,0,
+0,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,1,0,0,0,0,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,
+0,0,0,0,0,1,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,
+0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,
+0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,0,
+0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,
+0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,1,0,0,
+0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,1,0,0,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,1,0,0,0,1,1,1,1,1,1,0,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,1,0,0,0,1,1,1,1,1,1,0,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,1,0,0,0,1,1,1,1,1,1,0,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,0,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,0,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,0,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
+const TESTMAPWIDTH = 30;
+const TESTMAPHEIGHT = 40;
+const TESTMAP2 =
+[4,4,4,4,4,4,4,4,4,4,4,4,4,
+4,4,4,4,4,4,4,4,4,4,4,4,4,
+4,4,4,0,0,0,0,0,0,0,4,4,4,
+4,4,4,0,0,0,0,0,0,0,4,4,4,
+4,4,4,0,0,0,0,0,0,0,4,4,4,
+4,4,4,0,0,0,0,0,0,0,4,4,4,
+4,4,4,0,0,0,0,0,0,0,4,4,4,
+4,4,4,0,0,0,0,0,0,0,4,4,4,
+4,4,4,4,4,4,4,4,4,4,4,4,4,
+4,4,4,4,4,4,4,4,4,4,4,4,4,];
+const TESTMAPWIDTH2 = 13;
+const TESTMAPHEIGHT2 = 10;
+const MESSAGEVOL = 50;
+const MESSAGESHOW = 7;
+
+var ASSETS = {
+  image: {
+    'tomapiyo': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/image/tomapiyo.png',
+	  'yasagurehiyoco': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/image/_hiyoco_nomal.png',
+    'hit': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/image/hit.png',
+    'mapchip': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/map/map2.png',
+    'apple': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/image/item1.png',
+    'clover4': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/image/item3.png',
+    'clover3': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/image/mitsuba_clover.png',
+    'woodstick': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/image/wepon_010.png',
+    'dagger': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/image/wepon_001.png',
+    'rapier': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/image/wepon_003.png',
+    'bow': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/image/wepon_008.png',
+  },
+  spritesheet: {
+    'tomapiko_ss': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/spritesheet/tomapiko6.tmss',
+	  'hiyoco_ss': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/spritesheet/_hiyoco_ss6.tmss',
+    'mapchip_ss': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/spritesheet/mapchip3.tmss',
+  },
+  json: {
+    'player_params': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/params/_playerParameter2.json',
+    'enemy_params': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/params/_enemyParameter.json',
+    'item_data': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/data/_itemData.json',
+    'equipment_data': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/data/_equipmentData2.json',
+    'message_data': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/data/_messageData.json',
+  },
+  tmx: {
+    'testmap': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/map/testmap.tmx',
+  },
+};
+var inventory;
+var message;
+var itemdatatable;
+var equipdatatable;
+var controller;
+var savedata;
+function download(){
+  if(savedata){
+    savedata.getDataFile("savedata.svd");
+  }else{
+    console.log("ゲームを開始してください");
+  }
+}
+function readData(){
+  if(savedata){
+    savedata.readDataFile();
+  }else{
+    console.log("ゲームを開始してください");
+  }
+}
+function Pos2D(x, y){
+  this.x = x;
+  this.y = y;
+}
+function ActorStatus(){
+  this.position = null;
+  this.direction = null;
+  this.params = new Params();
+}
+function ActorSatiety(m, v){
+  this.max = m;
+  this.value = v;
+}
+function ActorInventory(s){
+  this.items = [];
+  this.itemData = [];
+  this.size = s;
+}
+function ActorEquipment(){
+  this.weapon = -1;
+  this.shield = -1;
+  this.accessory = -1;
+  this.extParams = new Params(0, 0, 0, 0, 0, 0, 0, 0);
+}
+function Params(i, l, h, hm, s, d, e, x){
+  this.id = i;    // ユニークID
+  this.lv = l;    // レベル
+  this.hp = h;    // HP
+  this.hpmax = hm; // 最大HP
+  this.str = s;   // 力
+  this.def = d;
+  this.exp = e;   // 獲得した経験値
+  this.xp = x;    // 倒したときに得られる経験値
+}
+function ItemData(itemid, datatable, x, y){
+  this.id = itemid;
+  this.name = datatable[itemid].name;
+  this.datatable = datatable;
+  this.isEquip = false;
+  this.pos = new Pos2D(x, y);
+}
+function GameData(){
+  this.playerStatus = null;
+  this.playerSatiety = null;
+  this.playerInventory = null;
+  this.playerEquipment = null;
+  
+  this.enemyStatuses = [];
+  
+  this.items = [];
+  
+  this.mapFloor = null;
+  this.mapCollision = null;
+}
+//document.getElementById('file').style.zIndex = 30;
+var DirUtillMove = function(position, dir){
+  let pos = new Pos2D(position.x, position.y);
+  switch(dir){
+    case eDir.Left:
+      pos.x--;
+      break;
+    case eDir.Right:
+      pos.x++;
+      break;
+    case eDir.Up:
+      pos.y--;
+      break;
+    case eDir.Down:
+      pos.y++;
+      break;
+  }
+  return pos;
+}
+phina.define("Array2D", {
+//  superClass: 'DisplayElement',
+  init: function(data, w, h){
+//    this.superInit();
+    this.data = data;
+    this.w = w;
+    this.h = h;
+  },
+  set: function(x, y, v){
+    this.data[x+y*this.w] = v;
+  },
+  get: function(x, y){
+    return this.data[x+y*this.w];
+  },
+});
+phina.define('MainScene', {
+  superClass: 'DisplayScene',
+  
+  init: function() {
+    this.superInit();
+    this.field = Field(this, 4, 6)
+      .setPosition(this.gridX.span(0), this.gridY.span(0))
+      .addChildTo(this);
+    let self = this;
+    itemdatatable = AssetManager.get("json", "item_data").data;
+    equipdatatable = AssetManager.get("json", "equipment_data").data;
+    this.items = [];
+    (1).times(function(i) {
+      self.items.push(Item(self.field, self.items.length, new ItemData(8, itemdatatable, 6, 5)));
+      self.items[self.items.length-1].addChildTo(self.field);
+    });
+    (1).times(function(i) {
+      self.items.push(Item(self.field, self.items.length, new ItemData(1, equipdatatable, 6, 8)));
+      self.items[self.items.length-1].addChildTo(self.field);
+    });
+    let pstatus = new ActorStatus();
+    pstatus.position = new Pos2D(4, 6);
+    pstatus.direction = eDir.Left;
+    pstatus.params = new Params(0, 1, 30, 30, 5, 5, 0, 10);
+    let params = AssetManager.get("json", "player_params").data;
+    let satiety = new ActorSatiety(100, 100);
+    this.player = Player(this.field, pstatus, params, satiety);
+    this.enemies = [];
+    let ex = [3, 5];
+    let ey = [4, 4];
+    params = AssetManager.get("json", "enemy_params").data;
+    (2).times(function(i) {
+      let estatus = new ActorStatus();
+      estatus.position = new Pos2D(ex[i], ey[i]);
+      estatus.direction = eDir.Left;
+      estatus.params = new Params(i+1, 1, 30, 30, 5, 3, 0, 10);
+      self.enemies.push(Enemy(self.field, estatus, params));
+    });
+    this.sequence = Sequence(this).addChildTo(this);
+    this.hit = Hit(0, 0)
+      .addChildTo(this.field)
+      .setPosition(this.field.gridX.center()-2*DRAWSIZE, this.field.gridY.center());
+    this.displayinfo = DisplayInfo(this).addChildTo(this);
+    inventory = Inventory(this).addChildTo(this);
+    let msgdata = AssetManager.get("json", "message_data").data;
+    message = Message(msgdata, "").addChildTo(this);
+    controller = Controller().addChildTo(this);
+    savedata = SaveData(this).addChildTo(this);
+  },
+  update: function() {
+    this.field.camera.px = this.field.worldToGridX(this.field.camera.wx);
+    this.field.camera.py = this.field.worldToGridY(this.field.camera.wy);
+  }
+});
+phina.define("Field", {
+  // 継承
+  superClass: 'DisplayElement',
+  // コンストラクタ
+  init: function(m, x, y) {
+    // 親クラス初期化
+    this.superInit();
+    this.main = m;
+    this.map = this.readTestMap(TESTMAP, TESTMAPWIDTH, TESTMAPHEIGHT, 3, 0);
+    this.collision = this.readTestMap(TESTMAP, TESTMAPWIDTH, TESTMAPHEIGHT, 3, -1);
+//    this.map = this.read("testmap", "floor");
+//    this.collision = this.read("testmap", "collision");
+    this.create(this.map);
+    this.camera = RectangleShape({
+      width:DRAWSIZE,
+      height:DRAWSIZE,
+      fill:"yellow",
+    }).setPosition(this.gridX.center()-2*DRAWSIZE, this.gridY.center())
+    .addChildTo(this);
+    this.camera.px = x;
+    this.camera.py = y;
+    this.camera.wx = x*DRAWSIZE;
+    this.camera.wy = y*DRAWSIZE;
+    this.camera.alpha = 0.5;
+  },
+  
+  update: function(app){
+    let self = this;
+    let subx = 0;
+    let suby = 0;
+    let num = 0;
+//    console.log("tflag:"+this.main.player.tflag,this.main.player.tweener.playing);
+    if(this.main.player.tweener.playing){
+        subx = this.camera.wx - this.camera.px * DRAWSIZE;
+        suby = this.camera.wy - this.camera.py * DRAWSIZE;
+//      this.main.player.tflag = true;
+    }
+    (GRIDWIDTH+4).times(function(spanX) {
+      (GRIDHEIGHT+2).times(function(spanY) {
+        num = self.map.get(spanX+self.camera.px-GRIDWIDTH/2-2,spanY+self.camera.py-(GRIDHEIGHT-1)/2-1);
+        x = self.gridX.span(spanX-4)-subx;
+        y = self.gridY.span(spanY)-DRAWSIZE/2-suby;
+        self.maprect[spanX+spanY*GRIDWIDTH].setChip(num, x, y);
+      });
+    });
+    this.readActors();
+  },
+  read: function(fname, layer){
+    let tmx = AssetManager.get("tmx", fname);
+    let mapdata = tmx.getMapData(layer);
+    return Array2D(mapdata, tmx.width, tmx.height);
+  },
+  readTestMap: function(data, w, h, zero, one){
+     let mapdata = [];
+    (data.length).times(function(i){
+      mapdata.push(data[i] == 0 ? zero:one);
+    });
+    return Array2D(mapdata, w, h)
+  },
+  create: function(mapdata){
+    this.gridX = Grid({
+      width: DRAWSIZE*GRIDWIDTH,
+      columns: GRIDWIDTH,
+      loop: false,
+    });
+    this.gridY = Grid({
+      width: DRAWSIZE*GRIDHEIGHT,
+      columns: GRIDHEIGHT,
+      loop: false,
+    });
+    this.maprect = Array(GRIDWIDTH*GRIDHEIGHT);
+    this.maplabel = Array(GRIDWIDTH*GRIDHEIGHT);
+    let self = this;
+    (GRIDWIDTH+4).times(function(spanX) {
+      (GRIDHEIGHT+2).times(function(spanY) {
+        self.maprect[spanX+(spanY)*GRIDWIDTH] = 
+        new MapChip().setPosition(self.gridX.span(spanX), self.gridY.span(spanY)+DRAWSIZE/2)
+        .addChildTo(self);
+        self.maplabel[spanX+(spanY)*GRIDWIDTH] = Label({
+          text:"",
+        }).addChildTo(self.maprect[spanX+spanY*GRIDWIDTH]);
+      });
+    });
+  },
+  readActors: function(){
+    let self = this;
+    (this.map.w).times(function(spanX){
+      (self.map.h).times(function(spanY){
+        let actor = self.getFieldActor(spanX, spanY);
+        if(actor){
+          actor.addChildTo(self);
+        }
+      });
+    });
+  },
+  removeActor: function(id){
+    if(id > 0){
+      id--;
+      this.main.enemies.splice(id, 1);
+      let self = this;
+      (this.main.enemies.length).times(function(i){
+        self.main.enemies[i].getParams().id = i+1;
+      });
+    }else{
+      this.main.exit();
+    }
+  },
+  removeItem: function(id){
+    this.main.items.splice(id, 1);
+    let self = this;
+    (this.main.items.length).times(function(i){
+      self.main.items[i].id = i;
+    });
+  },
+  addItem: function(item){
+    this.main.items.push(item);
+    return this.main.items.length - 1;
+  },
+  loadData: function(gamedata){
+    this.map = gamedata.mapFloor;
+    this.collision = gamedata.mapCollision;
+  },
+  isCollide: function(gridX, gridY, actor){
+    if(this.collision.get(gridX, gridY)>0){
+      return true;
+    }
+    if(actor !== this.main.player){
+      let pos = this.main.player.getGridPosition(true);
+      if(pos.x==gridX&&pos.y==gridY){
+        return true;
+      }
+    }
+    let self = this;
+    let res = false;
+    (this.main.enemies.length).times(function(i){
+      if(actor !== self.main.enemies[i]){
+        let pos = self.main.enemies[i].getGridPosition(true);
+        if(pos.x==gridX&&pos.y==gridY){
+          res = true;
+        }
+      }
+    });
+    return res;
+  },
+  isScreenView: function(screenX, screenY){
+    return (screenX>-1*DRAWSIZE) && (screenY>-1*DRAWSIZE) && (screenX<GRIDWIDTH*DRAWSIZE) && (screenY<GRIDHEIGHT*DRAWSIZE);
+  },
+  setCameraPosition: function(worldX, worldY){
+    this.camera.wx = worldX;
+    this.camera.wy = worldY;
+  },
+  getFieldActor: function(gridX, gridY){
+    let pos = this.main.player.getGridPosition(false);
+    if(pos.x==gridX&&pos.y==gridY){
+      return this.main.player;
+    }
+    let self = this;
+    let res = null;
+    (this.main.enemies.length).times(function(i){
+      pos = self.main.enemies[i].getGridPosition(false);
+      if(pos.x==gridX&&pos.y==gridY){
+        res = self.main.enemies[i];
+        return;
+      }
+    });
+    return res;
+  },
+  getFieldItem: function(gridX, gridY){
+    let self = this;
+    let res = null;
+    (this.main.items.length).times(function(i){
+      let pos = self.main.items[i].itemdata.pos;
+      if(pos.x==gridX&&pos.y==gridY){
+        res = self.main.items[i];
+        return;
+      }
+    });
+    return res;
+  },
+  getPlayer: function(){
+    return this.main.player;
+  },
+  gridToScreenX: function(gridX){
+    return (gridX-2)*DRAWSIZE-this.camera.wx+DRAWSIZE*GRIDWIDTH/2;
+  },
+  gridToScreenY: function(gridY){
+    return gridY*DRAWSIZE-this.camera.wy+DRAWSIZE*(GRIDHEIGHT-1)/2+DRAWSIZE/4;
+  },
+  screenToGridX: function(screenX){
+    return Math.floor((screenX-DRAWSIZE*GRIDWIDTH/2+this.camera.wx)/DRAWSIZE)+2;
+  },
+  screenToGridY: function(screenY){
+    return Math.floor((screenY-DRAWSIZE*(GRIDHEIGHT-1)/2+this.camera.wy-DRAWSIZE/4)/DRAWSIZE);
+  },
+  worldToGridX: function(worldX){
+    return Math.floor(worldX/DRAWSIZE);
+  },
+  worldToGridY: function(worldY){
+    return Math.floor(worldY/DRAWSIZE);
+  },
+  gridToWorldX: function(gridX){
+    return gridX*DRAWSIZE;
+  },
+  gridToWorldY: function(gridY){
+    return gridY*DRAWSIZE;
+  },
+});
+/*
+ * マップチップクラス
+ */
+phina.define("MapChip", {
+  // 継承
+  superClass: 'RectangleShape',
+  // コンストラクタ
+  init: function() {
+    // 親クラス初期化
+    this.superInit()
+    this.width=DRAWSIZE;
+    this.height=DRAWSIZE
+    this.num = 4;
+    this.fill="black";
+    this.stroke="black";
+    this.sprite = Sprite("mapchip", DRAWSIZE, DRAWSIZE).addChildTo(this);
+    this.sprite.scaleX = 0.64;
+    this.sprite.scaleY = 0.64;
+    this.ss = FrameAnimation('mapchip_ss')
+      .attachTo(this.sprite).gotoAndPlay(mapchip[this.num]);
+    this.label = new Label().addChildTo(this);
+  },
+  setChip: function(num, x, y){
+    if(num==0){
+  //        if(self.map.get(self.screenToGridX(self.gridToScreenX(spanX)), self.screenToGridY(self.gridToScreenY(spanY)))==1){
+      
+      this.setPosition(x, y);
+  //          .setPosition(self.gridToScreenX(spanX), self.gridToScreenY(spanY)+DRAWSIZE/2)
+      this.fill = "yellowgreen";
+      this.stroke = "teal";
+      this.num = num;
+    }else if(num==1){
+  //        if(self.map.get(self.screenToGridX(self.gridToScreenX(spanX)), self.screenToGridY(self.gridToScreenY(spanY)))==1){
+      this.setPosition(x, y);
+  //          .setPosition(self.gridToScreenX(spanX), self.gridToScreenY(spanY)+DRAWSIZE/2)
+      this.fill = "olive";
+      this.stroke = "yellow";
+      this.num = num;
+    }else if(num==2){
+  //        if(self.map.get(self.screenToGridX(self.gridToScreenX(spanX)), self.screenToGridY(self.gridToScreenY(spanY)))==1){
+      this.setPosition(x, y);
+  //          .setPosition(self.gridToScreenX(spanX), self.gridToScreenY(spanY)+DRAWSIZE/2)
+      this.fill = "white";
+      this.stroke = "yellow";
+      this.num = num;
+    }else if(num==4){
+  //        if(self.map.get(self.screenToGridX(self.gridToScreenX(spanX)), self.screenToGridY(self.gridToScreenY(spanY)))==1){
+      this.setPosition(x, y);
+  //          .setPosition(self.gridToScreenX(spanX), self.gridToScreenY(spanY)+DRAWSIZE/2)
+      this.fill = "brown";
+      this.stroke = "maroon";
+      this.num = num;
+    }else{
+      this.setPosition(x, y);
+  //          .setPosition(self.gridToScreenX(spanX), self.gridToScreenY(spanY)+DRAWSIZE/2)
+      this.fill = "aqua";
+      this.stroke = "aqua";
+      this.num = 3;
+    }
+//    console.log(this.num);
+  //        console.log("spanX:"+spanX+", span:"+(self.gridX.span(spanX-4)-subx))
+    this.ss.gotoAndPlay(mapchip[this.num]);
+    this.label.text = ""+this.num;
+    this.label.hide();
+  //        ""+(spanX+self.camera.gridX-GRIDWIDTH/2-4)+","+(spanY+self.camera.gridY-(GRIDHEIGHT-1)/2-1);
+  }
+});
+/*
+ * シーケンスクラス
+ */
+phina.define("Sequence", {
+  // 継承
+  superClass: 'Element',
+  // コンストラクタ
+  init: function(main) {
+    this.superInit();
+    this.main = main;
+    this.state = eAct.KeyInput;
+    this.donotcnt = 0;
+    this.doenemiesid = [];
+    this.actenemiesid = [];
+    this.moveenemiesid = [];
+    this.donotenemiesid = [];
+  },
+  update: function(app) {
+    let self = this;
+    let list = [];
+    switch(this.state){
+      case eAct.KeyInput:
+        this.main.player.proc(app);
+        switch(this.main.player.getAct()){
+          case eAct.OpenInventory:
+            this.state = eAct.OpenInventory;
+            this.donotcnt = 0;
+            this.doenemiesid = [];
+            this.actenemiesid = [];
+            this.moveenemiesid = [];
+            this.donotenemiesid = [];
+            break;
+          case eAct.ActBegin:
+            this.state = eAct.Act;
+            this.donotcnt = 0;
+            this.doenemiesid = [];
+            this.actenemiesid = [];
+            this.moveenemiesid = [];
+            this.donotenemiesid = [];
+            break;
+          case eAct.MoveBegin:
+            this.state = eAct.Move;
+            this.donotcnt = 0;
+            this.doenemiesid = [];
+            this.actenemiesid = [];
+            this.moveenemiesid = [];
+            this.donotenemiesid = [];
+            break;
+          default:
+            return;
+        }
+        break;
+      case eAct.OpenInventory:
+        let act = this.main.player.getAct();
+        if(act == eAct.ActEnd){
+          this.state = eAct.Act;
+        }else{
+          if(act == eAct.CloseInventory){
+            this.state = eAct.KeyInput;
+          }
+          this.main.player.proc(app);
+        }
+        break;
+      case eAct.Act:
+        if(this.donotenemiesid.length > 0 && this.donotcnt < this.main.enemies.length){
+          let dntenemiesid = [];
+          let self = this;
+          let cnt = this.donotenemiesid.length;
+          (cnt).times(function(i){
+            if(self.main.enemies[self.donotenemiesid[i]]){
+              self.main.enemies[self.donotenemiesid[i]].proc();
+              switch(self.main.enemies[self.donotenemiesid[i]].getAct()){
+                case eAct.ActBegin:
+                  self.actenemiesid.push(self.donotenemiesid[i]);
+                  self.doenemiesid.push(self.donotenemiesid[i]);
+                  break;
+                case eAct.MoveBegin:
+                  self.moveenemiesid.push(self.donotenemiesid[i]);
+                  self.doenemiesid.push(self.donotenemiesid[i]);
+                  break;
+                default:
+                  dntenemiesid.push(self.donotenemiesid[i]);
+                  break;
+              }
+            }
+          });
+          this.donotenemiesid = dntenemiesid;
+          this.donotcnt++;
+        }else if(this.main.player.getAct()<eAct.ActEnd){
+          this.main.player.proc();
+        }else if((list = this.enemiesDoList(this.actenemiesid, eAct.ActEnd)).length > 0){
+          self.main.enemies[list[0]].proc();
+        }else if((list = this.enemiesDoList(this.moveenemiesid, eAct.Move)).length > 0){
+          (list.length).times(function(i){
+            self.main.enemies[list[i]].proc();
+          });
+        }else if((list = this.enemiesDoList(this.moveenemiesid, eAct.MoveEnd)).length > 0){
+          (list.length).times(function(i){
+            self.main.enemies[list[i]].proc();
+          });
+        }else if(this.main.player.getAct()==eAct.ActEnd){
+          (this.main.enemies.length).times(function(i){
+            self.main.enemies[i].proc();
+            switch(self.main.enemies[i].getAct()){
+              case eAct.ActBegin:
+                self.actenemiesid.push(i);
+                self.doenemiesid.push(i);
+                break;
+              case eAct.MoveBegin:
+                self.moveenemiesid.push(i);
+                self.doenemiesid.push(i);
+                break;
+              default:
+                self.donotenemiesid.push(i);
+                break;
+            }
+          });
+          this.main.player.proc();
+        }else if((list = this.enemiesDoList(this.doenemiesid, eAct.TurnEnd)).length > 0){
+          (list.length).times(function(i){
+            self.main.enemies[list[i]].proc();
+          });
+        }else{
+          (this.doenemiesid.length).times(function(i){
+            if(self.main.enemies[self.doenemiesid[i]]){
+              self.main.enemies[self.doenemiesid[i]].proc();
+            }
+          });
+          (this.donotenemiesid.length).times(function(i){
+            if(self.main.enemies[self.donotenemiesid[i]]){
+              self.main.enemies[self.donotenemiesid[i]].resetDirection();
+            }
+          });
+          self.main.player.proc();
+          this.state = eAct.KeyInput;
+        }
+        break;
+      case eAct.Move:
+        if(this.donotenemiesid.length > 0 && this.donotcnt < this.main.enemies.length){
+          let dntenemiesid = [];
+          let self = this;
+          let cnt = this.donotenemiesid.length;
+          (cnt).times(function(i){
+            if(self.main.enemies[self.donotenemiesid[i]]){
+              self.main.enemies[self.donotenemiesid[i]].proc();
+              switch(self.main.enemies[self.donotenemiesid[i]].getAct()){
+                case eAct.ActBegin:
+                  self.actenemiesid.push(self.donotenemiesid[i]);
+                  self.doenemiesid.push(self.donotenemiesid[i]);
+                  break;
+                case eAct.MoveBegin:
+                  self.moveenemiesid.push(self.donotenemiesid[i]);
+                  self.doenemiesid.push(self.donotenemiesid[i]);
+                  self.main.enemies[self.donotenemiesid[i]].proc();
+                  break;
+                default:
+                  dntenemiesid.push(self.donotenemiesid[i]);
+                  break;
+              }
+            }
+          });
+          this.donotenemiesid = dntenemiesid;
+          this.donotcnt++;
+        }else if(this.main.player.getAct() == eAct.Move){
+          this.main.player.proc();
+        }else if((list = this.enemiesDoList(this.moveenemiesid, eAct.MoveEnd)).length > 0){
+          (list.length).times(function(i){
+            self.main.enemies[list[i]].proc();
+          });
+        }else if((list = this.enemiesDoList(this.actenemiesid, eAct.ActEnd)).length > 0){
+          self.main.enemies[list[0]].proc();
+        }else if(this.main.player.getAct() == eAct.MoveBegin){
+          this.main.player.proc();
+          (this.main.enemies.length).times(function(i){
+            self.main.enemies[i].proc();
+            switch(self.main.enemies[i].getAct()){
+              case eAct.ActBegin:
+                self.actenemiesid.push(i);
+                self.doenemiesid.push(i);
+                break;
+              case eAct.MoveBegin:
+                self.moveenemiesid.push(i);
+                self.doenemiesid.push(i);
+                self.main.enemies[i].proc();
+                break;
+              default:
+                self.donotenemiesid.push(i);
+                break;
+            }
+          });
+        }else if((list = this.enemiesDoList(this.doenemiesid, eAct.TurnEnd)).length > 0){
+          (list.length).times(function(i){
+            self.main.enemies[list[i]].proc();
+          });
+        }else{
+          (this.doenemiesid.length).times(function(i){
+            if(self.main.enemies[self.doenemiesid[i]]){
+              self.main.enemies[self.doenemiesid[i]].proc();
+            }
+          });
+          (this.donotenemiesid.length).times(function(i){
+            if(self.main.enemies[self.donotenemiesid[i]]){
+              self.main.enemies[self.donotenemiesid[i]].resetDirection();
+            }
+          });
+          self.main.player.proc();
+          this.state = eAct.KeyInput;
+        }
+        break;
+    }
+  },
+  enemiesDoList: function(alist, target){
+    let self = this;
+    let del = [];
+    let res;
+    let list = alist.slice();
+    (list.length).times(function(i){
+      if(!self.main.enemies[list[i]]){
+        alist.splice(i, 1);
+        list.splice(i, 1);
+      }else{
+        if(self.main.enemies[list[i]].getAct()>=target){
+          del.push(i);
+        }
+      }
+    });
+    let cnt = del.length;
+    (cnt).times(function(i){
+      list.splice(del.pop(), 1);
+    });
+    return list;
+  },
+});
+/*
+ * アクタークラス
+ */
+phina.define("Actor", {
+  // 継承
+  superClass: 'Sprite',
+  // コンストラクタ
+  init: function(f, st, prm, name, img, ss) {
+    // 親クラス初期化
+    this.superInit(img)
+    this.act = eAct.KeyInput;
+    this.direction = st.direction;
+    this.name = name;
+    this.px = st.position.x;
+    this.py = st.position.y;
+    this.wx = this.px*DRAWSIZE;
+	  this.wy = this.py*DRAWSIZE;
+	  this.paramstable = prm;
+	  this.params = st.params;
+	  this.setParams(st.params.lv, false);
+    this.field = f;
+    this.ss = FrameAnimation(ss)
+      .attachTo(this)
+      .gotoAndPlay(this.direction);
+    this.ss.paused = true;
+    this.tweener.playing = false;
+    this.tflag = false;
+    this.atkx = 0;
+    this.atky = 0;
+    this.isCameraCenter = false;
+    this.nextPos = new Pos2D(this.px, this.py);
+  },
+  update: function() {
+    if(this.isCameraCenter){
+      this.field.setCameraPosition(this.wx, this.wy);
+    }
+    this.x = this.field.gridToScreenX(this.px)+this.atkx;
+  	this.y = this.field.gridToScreenY(this.py)+this.atky;
+  },
+  proc: function(){
+    switch(this.act){
+      case eAct.KeyInput:
+        break;
+      case eAct.CloseInventory:
+        this.act = eAct.KeyInput;
+        break;
+      case eAct.ActBegin:
+        this.action();
+        break;
+      case eAct.Act:
+        if(!this.tweener.playing){
+          this.act = eAct.ActEnd;
+        }
+        break;
+      case eAct.ActEnd:
+        this.actEnd(true);
+        break;
+      case eAct.MoveBegin:
+        this.move();
+        break;
+      case eAct.Move:
+        if(!this.tweener.playing&&this.ss.finished){
+          this.act = eAct.MoveEnd;
+        }
+        break;
+      case eAct.MoveEnd:
+        this.ss.paused = true;
+        this.act = eAct.TurnEnd;
+        break;
+      case eAct.TurnEnd:
+        this.act = eAct.KeyInput;
+        break;
+    }
+  },
+  damage: function(str, def, dir){
+    switch(dir){
+      case eDir.Left:
+        this.direction = eDir.Right;
+        break;
+      case eDir.Right:
+        this.direction = eDir.Left;
+        break;
+      case eDir.Up:
+        this.direction = eDir.Down;
+        break;
+      case eDir.Down:
+        this.direction = eDir.Up;
+        break;
+    }
+    this.resetDirection();
+    let dmg = Math.round(str*(Math.pow(0.9375, def)));
+    this.params.hp -= dmg;
+    return dmg;
+  },
+  removeActor: function(){
+    this.field.removeActor(this.params.id);
+  },
+  removeItem: function(id){
+    this.field.removeItem(id);
+  },
+  addExp: function(xp){
+    this.params.exp += xp;
+    if(this.params.exp >= this.paramstable[this.params.lv-1].exp){
+      message.readText(10, this.name);
+      this.setParams(this.params.lv+1, true);
+      message.readText(11, this.name, this.params.lv);
+    }
+  },
+  addHp: function(add){
+    let val = 0;
+    if(add>0){
+      val = Math.ceil(this.params.hpmax/100*add);
+      this.params.hp += val;
+      if(this.params.hp>this.params.hpmax){
+        this.params.hp = this.params.hpmax;
+      }
+    }else{
+      val = Math.ceil(this.params.hpmax/100*(-add));
+      this.params.hp -= val;
+      if(this.params.hp<0){
+        this.params.hp = 0;
+      }
+    }
+    return val;
+  },
+  setParams: function(lv, isRefresh){
+    if(lv>20){
+      lv = 20;
+      this.params.exp = this.paramstable[lv-1].exp;
+      return;
+    }
+    this.params.lv = this.paramstable[lv-1].lv;
+    this.params.hpmax = this.paramstable[lv-1].hpmax;
+    if(isRefresh){
+      this.params.hp = this.params.hpmax;
+    }else{
+      if(this.params.hp>this.params.hpmax){
+        this.params.hp = this.params.hpmax;
+      }
+    }
+    this.params.str = this.paramstable[lv-1].str;
+    this.params.def = this.paramstable[lv-1].def;
+    this.params.xp = this.paramstable[lv-1].xp
+  },
+  setScale: function(size){
+    this.scaleX = size;
+    this.scaleY = size;
+  },
+  setCameraCenter: function(flag){
+    this.isCameraCenter = flag;
+  },
+  setHitImg: function(){
+    let hit = new Hit(this.x, this.y).addChildTo(this.field);
+  },
+  resetDirection: function(){
+    this.ss.gotoAndPlay(this.direction);
+    this.ss.paused = true;
+  },
+  getAct: function(){
+    return this.act;
+  },
+  getStatus: function(){
+    let status = new ActorStatus();
+    status.position = new Pos2D(this.px, this.py);
+    status.direction = this.direction;
+    status.params = this.params;
+    return status;
+  },
+  getGridPosition: function(isNextPos){
+    if(isNextPos){
+      return new Pos2D(this.nextPos.x, this.nextPos.y);
+    }
+    return new Pos2D(this.px, this.py);
+  },
+  getDirection: function(){
+    return this.direction;
+  },
+  getName: function(){
+    return this.name;
+  },
+  getParams: function(){
+    return this.params;
+  },
+  getField: function(){
+    return this.field;
+  },
+  getPlayer: function(){
+    return this.field.getPlayer();
+  },
+  isCollide: function(gridX, gridY, direction){
+    return this.field.isCollide(gridX, gridY, direction);
+  },
+  pickUp: function(){
+    return this.field.getFieldItem(this.px, this.py);
+  },
+  openInventory: function(){
+    this.act = eAct.OpenInventory;
+  },
+  closeInventory: function(){
+    this.act = eAct.CloseInventory;
+  },
+  choiceItem: function(item){
+    this.act = eAct.ActEnd;
+  },
+  actBegin: function(direction){
+    if(this.field.isScreenView(this.x, this.y)){
+      this.act = eAct.ActBegin;
+      this.direction = direction;
+    }
+  },
+  action: function(){
+    this.act = eAct.Act;
+    this.resetDirection();
+    switch(this.direction){
+      case eDir.Left:
+        this.actLeft();
+        break;
+      case eDir.Right:
+        this.actRight();
+        break;
+      case eDir.Up:
+        this.actUp();
+        break;
+      case eDir.Down:
+        this.actDown();
+        break;
+    }
+  },
+  actEnd: function(isAction){
+    if(isAction){
+      let atkplace = DirUtillMove(new Pos2D(this.px, this.py), this.direction);
+      let atkedactor = this.field.getFieldActor(atkplace.x, atkplace.y);
+      if(atkedactor){
+        let player = this.getPlayer();
+        if(player === this){
+          let str = this.params.str + player.equipment.extParams.str;
+          atkedactor.damage(str, this.direction);
+        }else{
+          atkedactor.damage(this.params.str, this.direction);
+        }
+      }
+    }
+    this.act = eAct.TurnEnd;
+  },
+  moveBegin: function(dir){
+    this.direction = dir;
+    this.nextPos = DirUtillMove(new Pos2D(this.px, this.py), this.direction);
+    if(!this.isCollide(this.nextPos.x, this.nextPos.y, this)){
+      this.act = eAct.MoveBegin;
+    }else{
+      this.nextPos = new Pos2D(this.px, this.py);
+    }
+  },
+  move: function(){
+    this.act = eAct.Move;
+    if(this.field.isScreenView(this.x, this.y)){
+      this.ss.gotoAndPlay(this.direction);
+    }
+    switch(this.direction){
+      case eDir.Left:
+        this.moveLeft();
+        break;
+      case eDir.Right:
+        this.moveRight();
+        break;
+      case eDir.Up:
+        this.moveUp();
+        break;
+      case eDir.Down:
+        this.moveDown();
+        break;
+    }
+  },
+  actLeft: function(){
+    this.tweener.clear();
+    this.tweener.to({
+      atkx:-DRAWSIZE*2/3,
+      },100,"default")
+      .to({
+      atkx:0,
+      },100,"default");
+  },
+  actRight: function(){
+    this.tweener.clear();
+    this.tweener.to({
+      atkx:DRAWSIZE*2/3,
+      },100,"default")
+      .to({
+      atkx:0,
+      },100,"default");
+  },
+  actUp: function(){
+    this.tweener.clear();
+    this.tweener.to({
+      atky:-DRAWSIZE*2/3,
+      },100,"default")
+      .to({
+      atky:0,
+      },100,"default");
+  },
+  actDown: function(){
+    this.tweener.clear();
+    this.tweener.to({
+      atky:DRAWSIZE*2/3,
+      },100,"default")
+      .to({
+      atky:0,
+      },100,"default");
+  },
+  moveLeft: function(){
+    if(this.field.isScreenView(this.x, this.y)){
+      this.tweener.clear();
+      this.tweener.to({
+        wx:this.wx-DRAWSIZE,
+        px:this.px-1,
+        },800,"default");
+    }else{
+      this.wx -= DRAWSIZE;
+      this.px -= 1;
+    }
+  },
+  moveRight: function(){
+    if(this.field.isScreenView(this.x, this.y)){
+      this.tweener.clear();
+      this.tweener.to({
+        wx:this.wx+DRAWSIZE,
+        px:this.px+1,
+        },800,"default");
+    }else{
+      this.wx += DRAWSIZE;
+      this.px += 1;
+    }
+  },
+  moveUp: function(){
+    if(this.field.isScreenView(this.x, this.y)){
+      this.tweener.clear();
+      this.tweener.to({
+        wy:this.wy-DRAWSIZE,
+        py:this.py-1,
+        },800,"default");
+    }else{
+      this.wy -= DRAWSIZE;
+      this.py -= 1;
+    }
+  },
+  moveDown: function(){
+    if(this.field.isScreenView(this.x, this.y)){
+      this.tweener.clear();
+      this.tweener.to({
+        wy:this.wy+DRAWSIZE,
+        py:this.py+1,
+        },800,"default");
+    }else{
+      this.wy += DRAWSIZE;
+      this.py += 1;
+    }
+  },
+  loadData: function(status){
+    this.px = status.position.x;
+    this.py = status.position.y;
+    this.wx = this.field.gridToWorldX(this.px);
+    this.wy = this.field.gridToWorldY(this.py);
+    this.direction = status.direction;
+    this.resetDirection();
+    this.params = status.params;
+  },
+});
+/*
+ * プレイヤークラス
+ */
+phina.define("Player", {
+  // 継承
+  superClass: 'Actor',
+  // コンストラクタ
+  init: function(f, st, prm, stt) {
+    // 親クラス初期化
+    this.superInit(f, st, prm, "とまぴよ", "tomapiyo", 'tomapiko_ss');
+//    this.superInit(f, x, y, "yellowhiyoco", 'hiyoco_ss');
+//    this.setScale(2);
+    this.satiety = stt;
+//    this.inventoryItems = [1,2,1,2,1,3,4,3,1,2,1,2];
+    this.inventory = new ActorInventory(1);
+    this.equipment = new ActorEquipment();
+    this.isAction = false;
+    this.superMethod("setCameraCenter", true);
+  },
+  update: function() {
+    this.superMethod("update");
+  },
+  proc: function(app){
+    switch(this.superMethod("getAct")){
+      case eAct.KeyInput:
+        let key = app.keyboard;
+//        let pos = this.superMethod("getGridPosition", false);
+        if (key.getKey(eDir.Left)) {
+          this.superMethod("moveBegin", eDir.Left);
+//          message.addText("key:left,"+pos.x+","+pos.y, "blue");
+        }
+        if (key.getKey(eDir.Right)) {
+          this.superMethod("moveBegin", eDir.Right);
+//          message.addText("key:right"+pos.x+","+pos.y, "blue");
+        }
+        if (key.getKey(eDir.Up)) {
+          this.superMethod("moveBegin", eDir.Up);
+//          message.addText("key:up"+pos.x+","+pos.y, "blue");
+        }
+        if (key.getKey(eDir.Down)) {
+          this.superMethod("moveBegin", eDir.Down);
+//          message.addText("key:down"+pos.x+","+pos.y, "blue");
+        }
+        if (key.getKey(eKey.OK)) {
+          this.isAction = true;
+          this.superMethod("actBegin", this.superMethod("getDirection"));
+//          message.addText("key:attack", "blue");
+        }
+        if (key.getKeyDown(eKey.Cancel)) {
+          let footitem = this.superMethod("pickUp");
+          let footitemdata = footitem ? footitem.itemdata:null;
+          this.openInventory(this.inventory.itemData, footitemdata);
+        }
+        if (key.getKeyDown(eKey.Save)) {
+          savedata.save();
+        }
+        if (key.getKeyDown(eKey.Load)) {
+          savedata.loadData(JSON.parse(localStorage.getItem('GameData')));
+        }
+        this.resetDirection();
+        break;
+      case eAct.OpenInventory:
+        inventory.proc(app);
+        break;
+      case eAct.Move:
+        this.superMethod("proc");
+        if(this.superMethod("getAct")==eAct.MoveEnd){
+          let item = this.superMethod("pickUp");
+          if(item){
+            if(this.inventory.items.length < this.inventory.size){
+              this.inventory.items.push(item);
+              this.inventory.itemData.push(item.itemdata);
+              this.superMethod("removeItem", item.id);
+              item.remove();
+              message.readText(8, item.itemdata.name);
+            }else{
+              message.readText(13, item.itemdata.name);
+            }
+          }
+        }
+        break;
+      case eAct.ActEnd:
+        this.superMethod("actEnd", this.isAction);
+        if(this.satiety.value > 0){
+          this.superMethod("addHp", 3);
+          this.satiety.value-=0.25;
+          if(this.satiety.value < 0){
+            this.satiety.value=0;
+          }
+        }else{
+          this.superMethod("addHp", -1);
+          let params = this.superMethod("getParams");
+          if(params.hp < 1){
+            this.superMethod("setHitImg");
+            this.removeActor();
+          }
+        }
+        break;
+      case eAct.MoveEnd:
+        this.superMethod("proc");
+        if(this.satiety.value > 0){
+          this.superMethod("addHp", 3);
+          this.satiety.value-=0.25;
+          if(this.satiety.value < 0){
+            this.satiety.value=0;
+          }
+        }else{
+          this.superMethod("addHp", -1);
+          let params = this.superMethod("getParams");
+          if(params.hp < 1){
+            this.superMethod("setHitImg");
+            this.removeActor();
+          }
+        }
+        break;
+      default:
+        this.superMethod("proc");
+        break;
+    }
+  },
+  damage: function(str, dir){
+    let def = this.superMethod("getParams").def + this.equipment.extParams.def;
+    let dmg = this.superMethod("damage", str, def, dir);
+    message.readText(1, this.superMethod("getName"), dmg);
+    let params = this.superMethod("getParams");
+    if(params.hp <= 0){
+      this.superMethod("setHitImg");
+      this.removeActor();
+    }
+  },
+  openInventory: function(data, footitem){
+    this.superMethod("openInventory");
+    inventory.openWindow(data, footitem);
+  },
+  useItem: function(ivtidx){
+    this.isAction = false;
+    this.inventory.items[ivtidx].use(this);
+    this.superMethod("choiceItem");
+    this.inventory.items.splice(ivtidx, 1);
+    this.inventory.itemData.splice(ivtidx, 1);
+    if(this.equipment.weapon > ivtidx){
+      this.equipment.weapon--;
+    }
+    if(this.equipment.shield > ivtidx){
+      this.equipment.shield--;
+    }
+    if(this.equipment.accessory > ivtidx){
+      this.equipment.accessory--;
+    }
+  },
+  equip: function(ivtidx){
+    this.isAction = false;
+    let data = this.inventory.itemData[ivtidx];
+    let atk = data.datatable[data.id].atk;
+    let def = data.datatable[data.id].def;
+    switch(data.datatable[data.id].type){
+      case "Weapon":
+        if(this.equipment.weapon > -1){
+          this.removeEquipment(this.equipment.weapon);
+        }else{
+          this.superMethod("choiceItem");
+        }
+        this.equipment.weapon = ivtidx;
+        break;
+      case "Shield":
+        if(this.equipment.shield > -1){
+          this.removeEquipment(this.equipment.shield);
+        }else{
+          this.superMethod("choiceItem");
+        }
+        this.equipment.shield = ivtidx;
+        break;
+      case "Accessory":
+        if(this.equipment.accessory > -1){
+          this.removeEquipment(this.equipment.accessory);
+        }else{
+          this.superMethod("choiceItem");
+        }
+        this.equipment.accessory = ivtidx;
+        break;
+    }
+    data.name = "Ｅ"+data.name;
+    data.isEquip = true;
+    this.equipment.extParams.str += atk;
+    this.equipment.extParams.def += def;
+  },
+  removeEquipment: function(ivtidx){
+    this.isAction = false;
+    this.superMethod("choiceItem");
+    let data = this.inventory.itemData[ivtidx];
+    let atk = data.datatable[data.id].atk;
+    let def = data.datatable[data.id].def;
+    switch(data.datatable[data.id].type){
+      case "Weapon":
+        this.equipment.weapon = -1;
+        break;
+      case "Shield":
+        this.equipment.shield = -1;
+        break;
+      case "Accessory":
+        this.equipment.accessory = -1;
+        break;
+    }
+    data.name = data.name.slice(1);
+    data.isEquip = false;
+    this.equipment.extParams.str -= atk;
+    this.equipment.extParams.def -= def;
+  },
+  put: function(ivtidx){
+    this.isAction = false;
+    let pos = this.superMethod("getGridPosition", false);
+    let field = this.superMethod("getField");
+    let data = this.inventory.itemData[ivtidx];
+    data.pos = pos;
+    if(data.isEquip){
+      this.removeEquipment(ivtidx);
+    }else{
+      this.superMethod("choiceItem");
+    }
+    let item = Item(field, -1, data);
+    item.setId(field.addItem(item));
+    item.addChildTo(field);
+    this.inventory.items.splice(ivtidx, 1);
+    this.inventory.itemData.splice(ivtidx, 1);
+    if(this.equipment.weapon > ivtidx){
+      this.equipment.weapon--;
+    }
+    if(this.equipment.shield > ivtidx){
+      this.equipment.shield--;
+    }
+    if(this.equipment.accessory > ivtidx){
+      this.equipment.accessory--;
+    }
+  },
+  swap: function(ivtid){
+    
+  },
+  addSatiety: function(add){
+    if(add>0){
+      this.satiety.value += Math.ceil(this.satiety.max/100*add);
+      if(this.satiety.value>this.satiety.max){
+        this.satiety.value = this.satiety.max;
+        message.readText(20);
+      }
+    }else{
+      this.satiety.value += Math.ceil(this.satiety.max/100*(-add));
+      if(this.satiety.value<0){
+        this.satiety.value = 0;
+      }
+    }
+  },
+  loadData: function(gamedata){
+    this.superMethod("loadData", gamedata.playerStatus);
+    this.satiety = gamedata.playerSatiety;
+    this.equipment = gamedata.playerEquipment;
+    this.inventory = gamedata.playerInventory;
+    let self = this;
+    let field = this.superMethod("getField");
+    (this.inventory.itemData.length).times(function(i){
+      if(self.inventory.itemData[i].datatable){
+        self.inventory.itemData[i].datatable = equipdatatable;
+      }else{
+        self.inventory.itemData[i].datatable = itemdatatable;
+      }
+      self.inventory.items.push(Item(field, -1, self.inventory.itemData[i]));
+    });
+  },
+});
+/*
+ * 敵クラス
+ */
+phina.define("Enemy", {
+  // 継承
+  superClass: 'Actor',
+  // コンストラクタ
+  init: function(f, st, prm) {
+    // 親クラス初期化
+    this.superInit(f, st, prm, "やさぐれひよこ", "yasagurehiyoco", 'hiyoco_ss')
+    this.superMethod("setScale", 2);
+    this.superMethod("setCameraCenter", false);
+    
+    this.hpbar = new Gauge({
+      fill: "red",
+      gaugeColor: "yellowgreen",
+      y: -20,
+      scaleX: 0.1,
+      scaleY: 0.1,
+    }).addChildTo(this).hide();
+  },
+  update: function() {
+    this.superMethod("update");
+    let params = this.superMethod("getParams");
+    if(params.hp<params.hpmax){
+      this.hpbar.show();
+    }
+    this.hpbar.maxValue = params.hpmax;
+    this.hpbar.value = params.hp;
+  },
+  proc: function(){
+    switch(this.superMethod("getAct")){
+      case eAct.KeyInput:
+        this.requestAI();
+        break;
+      default:
+        this.superMethod("proc");
+        break;
+    }
+  },
+  damage: function(str, dir){
+    let def = this.superMethod("getParams").def;
+    let dmg = this.superMethod("damage", str, def, dir);
+    message.readText(2, this.superMethod("getName"), dmg);
+    let params = this.superMethod("getParams");
+    if(params.hp < 1){
+      this.superMethod("setHitImg");
+      this.superMethod("removeActor");
+      message.readText(3, this.superMethod("getName"));
+      this.superMethod("getPlayer").addExp(params.xp);
+      this.remove();
+    }
+  },
+  requestAI: function(){
+    let dir = this.getAttackDir();
+    if(dir){
+      this.superMethod("actBegin", dir);
+    }else{
+      dir = this.getNextMoveDir();
+      this.superMethod("moveBegin", dir);
+    }
+  },
+  getAttackDir: function(){
+    let player = this.superMethod("getPlayer");
+    let ppos;
+    ppos = player.getGridPosition(player.getAct()==eAct.Move);
+    let epos = this.superMethod("getGridPosition", false);
+    let pos = DirUtillMove(epos, eDir.Left);
+    if(ppos.x == pos.x && ppos.y == pos.y){
+      return eDir.Left;
+    }
+    pos = DirUtillMove(epos, eDir.Right);
+    if(ppos.x == pos.x && ppos.y == pos.y){
+      return eDir.Right;
+    }
+    pos = DirUtillMove(epos, eDir.Up);
+    if(ppos.x == pos.x && ppos.y == pos.y){
+      return eDir.Up;
+    }
+    pos = DirUtillMove(epos, eDir.Down);
+    if(ppos.x == pos.x && ppos.y == pos.y){
+      return eDir.Down;
+    }
+    return;
+  },
+  getNextMoveDir: function(){
+    let ppos = this.superMethod("getPlayer").getGridPosition(false);
+    let epos = this.superMethod("getGridPosition", false);
+    // プレイヤーへの距離を求める
+    let dx = ppos.x - epos.x;
+    let dy = ppos.y - epos.y;
+    if(Math.abs(dx) > Math.abs(dy)) {
+      // X方向への距離の方が遠いのでそっちに進む
+      if(dx < 0) { return eDir.Left;  } // 左
+      else       { return eDir.Right; } // 右
+    }
+    else {
+      // Y方向へ進む
+      if(dy < 0) { return eDir.Up;   } // 上
+      else       { return eDir.Down; } // 下
+    }
+  },
+});
+/*
+ * アイテムクラス
+ */
+phina.define("Item", {
+  // 継承
+  superClass: 'Sprite',
+  
+  // コンストラクタ
+  init: function(f, id, itemdata) {
+    // 親クラス初期化
+    this.superInit(itemdata.datatable[itemdata.id].image);
+    this.scaleX = itemdata.datatable[itemdata.id].size;
+    this.scaleY = itemdata.datatable[itemdata.id].size;
+    this.field = f;
+    this.id = id;
+    this.itemdata = itemdata;
+    this.wx = itemdata.pos.x*DRAWSIZE;
+    this.wy = itemdata.pos.y*DRAWSIZE;
+    this.isCameraCenter = false;
+  },
+  update: function() {
+    if(this.isCameraCenter){
+      this.field.setCameraPosition(this.wx, this.wy);
+    }
+    this.x = this.field.gridToScreenX(this.itemdata.pos.x);
+  	this.y = this.field.gridToScreenY(this.itemdata.pos.y)+DRAWSIZE/6;
+  },
+  setId: function(id){
+    this.id = id;
+  },
+  use: function(actor){
+    let name, hp, food;
+    switch(this.itemdata.datatable[this.itemdata.id].type){
+      case "Food":
+        food = this.itemdata.datatable[this.itemdata.id].food;
+        this.useFood(food);
+        break;
+      case "Medicine":
+        name = this.itemdata.name;
+        hp = this.itemdata.datatable[this.itemdata.id].hp;
+        food = this.itemdata.datatable[this.itemdata.id].food;
+        this.useMedicine(actor, name, hp, food);
+        break;
+    }
+  },
+  useFood: function(food){
+    message.readText(21);
+    this.field.getPlayer().addSatiety(food);
+  },
+  useMedicine: function(actor, name, hp, food){
+    message.readText(5, name);
+    let val = actor.addHp(hp);
+    message.readText(18, actor.name, val);
+    this.field.getPlayer().addSatiety(food);
+  },
+});
+/*
+ * インベントリクラス
+ */
+phina.define("Inventory", {
+  // 継承
+  superClass: 'DisplayElement',
+  
+  // コンストラクタ
+  init: function(main) {
+    // 親クラス初期化
+    this.superInit();
+    this.main = main;
+    let back = RectangleShape({
+      fill: "skyblue",
+      strokeWidth: 0,
+      width: 640,
+      height: 200,
+    }).addChildTo(this);
+    back.alpha = 0.5;
+    this.x = 320;
+    this.y = 860;
+    this.itemlist = [];
+    this.itemdata = [];
+    this.selectitem = 0;
+    this.p = 0;
+    this.q = 0;
+    this.subp = 0;
+    this.footitemid = -1;
+    let self = this;
+    (5).times(function(i){
+      let rect = RectangleShape({
+        x: -300,
+        y: -160 + i*40,
+        width: 1280,
+        height: 40,
+        fill: "transparent",
+        strokeWidth: 1,
+        stroke: "white",
+      }).addChildTo(self).hide();
+      rect.alpha = 0.25*i;
+      let label = Label({
+        fill: "white",
+        stroke: "skyblue",
+        align: "left",
+        y: 5,
+        text: "",
+        scaleY: 0.25*i,
+      }).addChildTo(rect);
+      self.itemlist.push(rect);
+    });
+    (4).times(function(i){
+      let rect = RectangleShape({
+        x: -300,
+        y: 40 + i*40,
+        width: 1280,
+        height: 40,
+        strokeWidth: 1,
+        stroke: "white",
+        fill: "transparent",
+      }).addChildTo(self).hide();
+      rect.alpha = 1-0.25*(i+1);
+      let label = new Label({
+        fill: "white",
+        stroke: "skyblue",
+        align: "left",
+        y: 5,
+        text: "",
+        scaleY: 1-0.25*(i+1),
+      }).addChildTo(rect);
+      self.itemlist.push(rect);
+    });
+    this.subwindow = RectangleShape({
+      fill: "skyblue",
+      x: 220,
+      y: -190,
+      width: 150,
+      height: 150,
+    }).addChildTo(this).hide();
+    this.subwindow.alpha = 0.5;
+    this.subselect = [];
+    (3).times(function(i){
+      let rect = RectangleShape({
+        x: 220,
+        y: -239 + i*48,
+        width: 150,
+        height: 48,
+        fill: "transparent",
+        strokeWidth: 1,
+        stroke: "white",
+      }).addChildTo(self).hide();
+      let label = Label({
+        fill: "white",
+        stroke: "skyblue",
+        align: "left",
+        x: -65,
+        y: 5,
+      }).addChildTo(rect);
+      self.subselect.push(rect);
+    });
+    this.subselect[0].children[0].text = "";
+    this.subselect[1].children[0].text = "";
+    this.subselect[2].children[0].text = "なげる";
+    this.ishide = false;
+    this.isopen = false;
+    this.issubhide = false;
+    this.issubopening = false;
+    this.issubopen = false;
+    this.scroll = 0;
+    this.hide();
+  },
+  update: function(app){
+    if(this.ishide){
+      if(!this.tweener.playing){
+        this.hide();
+        message.show();
+        this.ishide = false;
+        this.isopen = false;
+      }
+    }
+    if(this.issubhide){
+      if(!this.subwindow.tweener.playing){
+        this.subwindow.hide();
+        this.issubhide = false;
+        this.issubopen = false;
+      }
+    }
+  },
+  proc: function(app) {
+    if(!this.ishide){
+      if(!this.tweener.playing){
+        let self = this;
+        if(!this.isopen){
+          (9).times(function(i){
+            self.itemlist[i].show();
+          });
+          this.isopen = true;
+        }
+        if(this.itemlist[4].children[0].text === ""){
+          if(this.scroll < 0){
+            this.upScroll(1);
+          }
+          if(this.scroll > 0){
+            this.downScroll(1);
+          }
+        }else{
+          if(!this.issubopen){
+            let key = app.keyboard;
+            if (key.getKey(eDir.Up)) {
+              this.upScroll(500);
+            }
+            if (key.getKey(eDir.Down)) {
+              this.downScroll(500);
+            }
+            if (key.getKeyDown(eKey.OK)) {
+              this.openSubWindow();
+            }
+          }
+        }
+        if(!this.issubopen){
+          let key = app.keyboard;
+          if (key.getKeyDown(eKey.Cancel)) {
+            this.closeWindow();
+          }
+        }
+      }
+    }
+    if(!this.issubhide){
+      if(!this.subwindow.tweener.playing){
+        let self = this;
+        if(this.issubopening){
+          (this.subselect.length).times(function(i){
+            self.subselect[i].show();
+          });
+          this.issubopening = false;
+          this.issubopen = true;
+        }
+        if(this.issubopen){
+          let key = app.keyboard;
+          if (key.getKeyDown(eDir.Up)) {
+            this.selectSubWindow(-1);
+          }
+          if (key.getKeyDown(eDir.Down)) {
+            this.selectSubWindow(1);
+          }
+          if (key.getKeyDown(eKey.OK)) {
+            this.okSubWindow();
+          }
+          if (key.getKeyDown(eKey.Cancel)) {
+            this.closeSubWindow();
+          }
+        }
+      }
+    }
+  },
+  upScroll: function(time){
+    let self = this;
+    let newlist = [];
+    let flag = true;
+    (9).times(function(i){
+      if(self.itemlist[i].tweener.playing){
+        flag = false;
+        return;
+      }
+    });
+    (4).times(function(i){
+      let thats = self.itemlist[i];
+      if(flag){
+        newlist.push(thats);
+        thats.tweener.clear();
+        thats.tweener.to({
+          y: thats.y+40,
+          alpha: thats.alpha+0.25,
+          },time,"swing");
+        thats = self.itemlist[i].children[0];
+        thats.tweener.clear();
+        thats.tweener.to({
+          scaleY: thats.scaleY+0.25,
+          },time,"swing");
+      }
+    });
+    (4).times(function(i){
+      let thats = self.itemlist[i+4];
+      if(flag){
+        newlist.push(thats);
+        thats.tweener.clear();
+        thats.tweener.to({
+          y: thats.y+40,
+          alpha: thats.alpha-0.25,
+          },time,"swing");
+        thats = self.itemlist[i+4].children[0];
+        thats.tweener.clear();
+        thats.tweener.to({
+          scaleY: thats.scaleY-0.25,
+          },time,"swing");
+      }
+    });
+    if(flag){
+      this.itemlist[4].fill = "transparent";
+      this.itemlist[3].fill = "silver";
+      this.itemlist[8].y = -160;
+      this.itemlist[8].alpha = 0;
+      this.itemlist[8].children[0].scaleY = 0;
+      this.itemlist[8].children[0].text = this.itemdata[this.q].name;
+      if(this.q == this.footitemid){
+        this.itemlist[8].children[0].fill = "yellow";
+      }else{
+        this.itemlist[8].children[0].fill = "white";
+      }
+      newlist.unshift(this.itemlist[8]);
+      this.itemlist = newlist;
+      this.q = (this.q+this.itemdata.length-1)%this.itemdata.length
+      this.p = (this.p+this.itemdata.length-1)%this.itemdata.length
+      self.itemlist[2].show();
+      this.itemlist[1].hide();
+      this.scroll = -1;
+      this.selectitem = (this.selectitem+this.itemdata.length-1)%this.itemdata.length;
+    }
+  },
+  downScroll: function(time){
+    let self = this;
+    let newlist = [];
+    let flag = true;
+    (9).times(function(i){
+      if(self.itemlist[i].tweener.playing){
+        flag = false;
+        return;
+      }
+    });
+    (4).times(function(i){
+      let thats = self.itemlist[8-i];
+      if(flag){
+        newlist.unshift(thats);
+        thats.tweener.clear();
+        thats.tweener.to({
+          y: thats.y-40,
+          alpha: thats.alpha+0.25,
+          },time,"swing");
+        thats = self.itemlist[8-i].children[0];
+        thats.tweener.clear();
+        thats.tweener.to({
+          scaleY: thats.scaleY+0.25,
+          },time,"swing");
+      }
+    });
+    (4).times(function(i){
+      let thats = self.itemlist[4-i];
+      if(flag){
+        newlist.unshift(thats);
+        thats.tweener.clear();
+        thats.tweener.to({
+          y: thats.y-40,
+          alpha: thats.alpha-0.25,
+          },time,"swing");
+        thats = self.itemlist[4-i].children[0];
+        thats.tweener.clear();
+        thats.tweener.to({
+          scaleY: thats.scaleY-0.25,
+          },time,"swing");
+      }
+    });
+    if(flag){
+      this.itemlist[4].fill = "transparent";
+      this.itemlist[5].fill = "silver";
+      this.itemlist[0].y = 165;
+      this.itemlist[0].alpha = 0;
+      this.itemlist[0].children[0].scaleY = 0;
+      this.itemlist[0].children[0].text = this.itemdata[this.p].name;
+      if(this.p == this.footitemid){
+        this.itemlist[0].children[0].fill = "yellow";
+      }else{
+        this.itemlist[0].children[0].fill = "white";
+      }
+      newlist.push(this.itemlist[0]);
+      this.itemlist = newlist;
+      this.p = (this.p+1)%this.itemdata.length;
+      this.q = (this.q+1)%this.itemdata.length;
+      this.itemlist[8].show();
+      this.itemlist[1].hide();
+      this.scroll = 1;
+      this.selectitem = (this.selectitem+1)%this.itemdata.length;
+    }
+  },
+  openWindow: function(data, footitem){
+    this.scaleX = 0.001;
+    this.scaleY = 0.001;
+    message.hide();
+    this.show();
+    this.tweener.clear();
+    this.tweener.to({
+      scaleX: 1,
+      scaleY: 1,
+      },500,"swing");
+    let self = this;
+    let len = footitem ? data.length+1:data.length;
+    this.footitemid = footitem ? data.length:-1;
+    if(footitem){
+      this.itemdata = data.concat(new Array(1).fill(footitem));
+      this.itemdata = len > 8 ? this.itemdata : this.itemdata.concat(new Array(9-len).fill(new ItemData(0, itemdatatable, -1, -1)));
+    }else{
+      this.itemdata = len > 8 ? data : data.concat(new Array(9-len).fill(new ItemData(0, itemdatatable, -1, -1)));
+    }
+    this.p = 5;
+    this.q = len < 9 ? 4 : self.itemdata.length-5;
+    (5).times(function(i){
+      self.itemlist[4+i].children[0].text = self.itemdata[i].name;
+      if(i == self.footitemid){
+        self.itemlist[4+i].children[0].fill = "yellow";
+      }else{
+        self.itemlist[4+i].children[0].fill = "white";
+      }
+    });
+    (4).times(function(i){
+      self.itemlist[3-i].children[0].text = self.itemdata[self.itemdata.length-1-i].name;
+      if(self.itemdata.length-1-i == this.footitemid){
+        self.itemlist[3-i].children[0].fill = "yellow";
+      }else{
+        self.itemlist[3-i].children[0].fill = "white";
+      }
+    });
+    this.itemlist[4].fill = "silver";
+    this.selectitem = 0;
+  },
+  closeWindow: function(){
+    this.scaleX = 1;
+    this.scaleY = 1;
+    this.tweener.clear();
+    this.tweener.to({
+      scaleX: 0.001,
+      scaleY: 0.001,
+      },500,"swing");
+      let self = this;
+    (this.itemlist.length).times(function(i){
+      self.itemlist[i].hide();
+    });
+    this.main.player.closeInventory();
+    this.ishide = true;
+  },
+  selectSubWindow: function(curmove){
+    this.subselect[this.subp].fill = "transparent";
+    this.subp = (this.subp+curmove+this.subselect.length)%this.subselect.length;
+    this.subselect[this.subp].fill = "silver";
+    if(this.subselect[this.subp].children[0].fill == "silver"){
+      this.selectSubWindow(curmove);
+    }
+  },
+  okSubWindow: function(){
+    let self = this;
+    if(this.subselect[this.subp].children[0].fill == "white"){
+      this.closeSubWindow();
+      this.closeWindow();
+      switch(this.subselect[this.subp].children[0].text){
+        case "つかう":
+          this.main.player.useItem(this.selectitem);
+          break;
+        case "そうび":
+          this.main.player.equip(this.selectitem);
+          break;
+        case "はずす":
+          this.main.player.removeEquipment(this.selectitem);
+          break;
+        case "おく":
+          this.main.player.put(this.selectitem);
+          break;
+        case "こうかん":
+          this.main.player.swap(this.selectitem);
+          break;
+      }
+    }
+  },
+  openSubWindow: function(){
+    this.subselect[0].children[0].fill = "white";
+    this.subselect[1].children[0].fill = "white";
+    this.subp = 0;
+    if(this.selectitem == this.footitemid){
+      this.subselect[0].children[0].text = "ひろう";
+      this.subselect[1].children[0].text = "つかう";
+      if(this.main.player.inventory.size <= this.main.player.inventory.itemData.length){
+        this.subselect[0].children[0].fill = "silver";
+        this.subp = 1;
+      }
+      if(this.itemdata[this.selectitem].datatable === equipdatatable){
+        this.subselect[1].children[0].fill = "silver";
+        if(this.subp > 0){
+          this.subp = 2;
+        }
+      }
+      this.subselect[this.subp].fill = "silver";
+    }else{
+      if(this.itemdata[this.selectitem].datatable === equipdatatable){
+        if(this.itemdata[this.selectitem].isEquip){
+          this.subselect[0].children[0].text = "はずす";
+        }else{
+          this.subselect[0].children[0].text = "そうび";
+        }
+      }else{
+        this.subselect[0].children[0].text = "つかう";
+      }
+      if(this.footitemid>-1){
+        this.subselect[1].children[0].text = "こうかん";
+      }else{
+        this.subselect[1].children[0].text = "おく";
+      }
+    }
+    this.subwindow.scaleX = 0.001;
+    this.subwindow.scaleY = 0.001;
+    this.subwindow.show();
+    this.subwindow.tweener.clear();
+    this.subwindow.tweener.to({
+      scaleX: 1,
+      scaleY: 1,
+      },500,"swing");
+    this.issubopening = true;
+    let self = this;
+    (this.subselect.length).times(function(i){
+      self.subselect[i].fill = "transparent";
+    });
+    this.subselect[this.subp].fill = "silver";
+  },
+  closeSubWindow: function(){
+    this.subwindow.scaleX = 1;
+    this.subwindow.scaleY = 1;
+    this.subwindow.tweener.clear();
+    this.subwindow.tweener.to({
+      scaleX: 0.001,
+      scaleY: 0.001,
+      },500,"swing");
+    let self = this;
+    (this.subselect.length).times(function(i){
+      self.subselect[i].hide();
+    });
+    this.issubhide = true;
+  }
+});
+/*
+ * メッセージ表示クラス
+ */
+phina.define("Message", {
+  // 継承
+  superClass: 'DisplayElement',
+  // コンストラクタ
+  init: function(data, t) {
+    // 親クラス初期化
+    this.superInit();
+    this.labels = Array(MESSAGEVOL);
+    this.data = data;
+    let self = this;
+    (MESSAGEVOL).times(function(x) {
+      self.labels[x] = Label({
+        text:t,
+        fill:"white",
+        stroke:"blue",
+        align:"left",
+        baseline:"bottom",
+        x:-1000,
+        y:270-15*(MESSAGESHOW+1),
+        scaleX:0.8,
+        scaleY:0.8,}).addChildTo(self);
+    });
+    this.x = -10;
+    this.y = DRAWSIZE*GRIDHEIGHT-300;
+    this.p = 0;
+    this.r = 0;
+    this.q = 0;
+    this.popflag = false;
+    this.num = 0;
+  },
+  update: function() {
+    let self = this;
+    if(this.popflag&&(!self.labels[this.r].tweener.playing)){
+      let r = this.r;
+      let n = 0;
+      (this.num/2+1).times(function(x) {
+        if(!self.labels[(r-x+MESSAGEVOL+1)%MESSAGEVOL].tweener.playing){
+          self.labels[(r-x+MESSAGEVOL+1)%MESSAGEVOL].tweener.clear();
+          self.labels[(r-x+MESSAGEVOL+1)%MESSAGEVOL].tweener
+          .to({
+            y:240-15*(MESSAGESHOW-1-n),
+          },500,"swing");
+        }
+        n = n < (MESSAGESHOW-1)*2-1 ? n+2 : (MESSAGESHOW-1)*2;
+//        console.log(n+","+((r+x+MESSAGEVOL-1)%MESSAGEVOL)+","+(200-30*(MESSAGESHOW-n)));
+      });
+      if(this.num/2>MESSAGESHOW-1){
+        this.initText(this.q);
+        this.q = (this.q+1) % MESSAGEVOL;
+      }
+      this.r = (this.r+1) % MESSAGEVOL;
+      this.num = this.num<(MESSAGESHOW-1)*2-1 ? this.num+1 : (MESSAGESHOW-1)*2;
+      this.popflag = false;
+    }else if(!self.labels[this.r].tweener.playing){
+      if(self.labels[this.r].text!==""){
+        self.labels[this.r].tweener.clear();
+        self.labels[this.r].tweener.to({
+          x:10,
+          y:270-15*(MESSAGESHOW+1),
+        },500,"swing");
+        console.log("text"+this.r+"="+self.labels[this.r].text);
+        this.popflag = true;
+        this.num++;
+      }
+    }
+  },
+  initText: function(q){
+      this.labels[q].text = "";
+      this.labels[q].stroke = "blue";
+      this.labels[q].x = -1000;
+      this.labels[q].y = 270-15*(MESSAGESHOW+1);
+      this.num--;
+  },
+  readText: function(i, val1, val2){
+    let text = "";
+    let self = this;
+    let cnt = 0;
+    i--;
+    (this.data[i].text.length).times(function(j){
+      if(self.data[i].text[j+cnt]){
+        if(self.data[i].text[j+cnt]==="<"){
+          cnt += 4;
+          if(self.data[i].text[j+cnt]==="1"){
+            text += val1;
+          }else{
+            text += val2;
+          }
+          cnt++;
+        }else{
+          text += self.data[i].text[j+cnt];
+        }
+      }
+    });
+    this.addText(text, this.data[i].color);
+  },
+  addText: function(t, c){
+    this.labels[this.p].text=t;
+    this.labels[this.p].stroke=c;
+    this.p = (this.p+1) % MESSAGEVOL;
+    if(Math.abs(this.p-this.q)>MESSAGEVOL){
+      this.p = this.q;
+      this.q  = (this.q+1) % MESSAGEVOL;
+    }
+  },
+});
+/*
+ * ヒットクラス
+ */
+phina.define("Hit", {
+  // 継承
+  superClass: 'Sprite',
+  
+  // コンストラクタ
+  init: function(screenX,screenY) {
+    // 親クラス初期化
+    this.superInit('hit');
+    this.x = screenX;
+    this.y = screenY;
+    this.tweener.to({
+      scaleX:3,
+      scaleY:3,
+      alpha:0,
+    },1000,"easeOutQuart");
+  },
+  
+  update: function() {
+    if(!this.tweener.playing){
+      this.remove();
+    }
+  }
+});
+// シーン管理
+phina.define("SceneFlow", {
+  superClass: "phina.game.ManagerScene",
+  init: function() {
+    this.superInit({
+      startLabel: "title",
+      scenes: [{
+        label: "title",
+        className: "phina.game.TitleScene",
+        title: "phinaroguelike",
+        nextLabel: "load",
+      },{
+        label: "load",
+        className: "phina.game.LoadingScene",
+        arguments: {
+          assets: ASSETS,
+        },
+        nextLabel: "main",
+      },{
+        label: "main",
+        className: "MainScene",
+        nextLabel: "result",
+      },{
+        label: "result",
+        className: "phina.game.ResultScene",
+        nextLabel: "title",
+      }],
+    });
+  }
+});
+/*
+ * 情報表示クラス
+ */
+phina.define("DisplayInfo", {
+  // 継承
+  superClass: 'DisplayElement',
+  
+  // コンストラクタ
+  init: function(main) {
+    // 親クラス初期化
+    this.superInit();
+    this.main = main;
+    this.statuslabel = Label({
+      fill: "white",
+      stroke: "black",
+      x: 165,
+      y: 25,
+      align: "left",
+      scaleX: 0.6,
+      scaleY: 0.6,
+    }).addChildTo(this);
+    this.hpbar = Gauge({
+      fill: "red",
+      gaugeColor: "yellowgreen",
+      x: 320,
+      y: 40,
+      scaleX: 1.2,
+      scaleY: 0.2,
+    }).addChildTo(this);
+    this.satietylabel = Label({
+      fill: "white",
+      stroke: "black",
+      x: 500,
+      y: 35,
+      align: "left",
+      scaleX: 0.8,
+      scaleY: 0.8,
+    }).addChildTo(this);
+  },
+  
+  update: function() {
+    let params = this.main.player.getParams();
+    let stt = this.main.player.satiety;
+    this.statuslabel.text = "Lv:"+params.lv+"  "+params.hp+"/"+params.hpmax;
+    this.hpbar.maxValue = params.hpmax;
+    this.hpbar.value = params.hp;
+    this.satietylabel.text = Math.ceil(stt.value)+"/"+stt.max;
+  }
+});
+/*
+ * コントローラークラス
+ */
+phina.define("Controller", {
+  // 継承
+  superClass: 'DisplayElement',
+  // コンストラクタ
+  init: function(app) {
+    this.superInit();
+    this.uptri = TriangleShape({
+      fill: "white",
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0,
+    }).addChildTo(this);
+    this.lefttri = TriangleShape({
+      fill: "white",
+      x: -60,
+      y: 60,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 270,
+    }).addChildTo(this);
+    this.downtri = TriangleShape({
+      fill: "white",
+      x: 0,
+      y: 120,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 180,
+    }).addChildTo(this);
+    this.righttri = TriangleShape({
+      fill: "white",
+      x: 60,
+      y: 60,
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 90,
+    }).addChildTo(this);
+    this.uptri.alpha = 0.8;
+    this.lefttri.alpha = 0.8;
+    this.downtri.alpha = 0.8;
+    this.righttri.alpha = 0.8;
+    this.uptri.setInteractive(true);
+    this.lefttri.setInteractive(true);
+    this.downtri.setInteractive(true);
+    this.righttri.setInteractive(true);
+    
+    this.okbutton = CircleShape({
+      fill: "white",
+      x: 0,
+      y: 60,
+      scaleX: 0.8,
+      scaleY: 0.8,
+    }).addChildTo(this);
+    this.okbutton.alpha = 0.8;
+    this.okbutton.setInteractive(true);
+    this.cancelbutton = CircleShape({
+      fill: "white",
+      x: -70,
+      y: 125,
+      scaleX: 0.8,
+      scaleY: 0.8,
+    }).addChildTo(this);
+    let oklabel = Label({
+      text: eKey.OK,
+      fill: "silver",
+      y: 5,
+      scaleX: 1.5,
+      scaleY: 1.5,
+    }).addChildTo(this.okbutton);
+    let cancellabel = Label({
+      text: eKey.Cancel,
+      fill: "silver",
+      y: 5,
+      scaleX: 1.5,
+      scaleY: 1.5,
+    }).addChildTo(this.cancelbutton);
+    this.cancelbutton.alpha = 0.8;
+    this.cancelbutton.setInteractive(true);
+    
+    this.savebutton = RectangleShape({
+      fill: "skyblue",
+      x: 40,
+      y: -700,
+      scaleX: 1.5,
+      scaleY: 1,
+    }).addChildTo(this);
+    this.loadbutton = RectangleShape({
+      fill: "skyblue",
+      x: 40,
+      y: -630,
+      scaleX: 1.5,
+      scaleY: 1,
+    }).addChildTo(this);
+    let savelabel = Label({
+      text: "SAVE",
+      fill: "white",
+      y: 7,
+      scaleX: 0.7,
+      scaleY: 1.3,
+    }).addChildTo(this.savebutton);
+    let loadlabel = Label({
+      text: "LOAD",
+      fill: "white",
+      y: 7,
+      scaleX: 0.7,
+      scaleY: 1.3,
+    }).addChildTo(this.loadbutton);
+    this.savebutton.alpha = 0.8;
+    this.loadbutton.alpha = 0.8;
+    this.savebutton.setInteractive(true);
+    this.loadbutton.setInteractive(true);
+    this.setPosition(530,800);
+  },
+  update: function(app) {
+    let self = this;
+    this.uptri.onpointstart = function() {
+      self.uptri.fill = "yellow";
+      app.keyboard.setKey(eDir.Up, true);
+    };
+    this.uptri.onpointend = function() {
+      self.uptri.fill = "white";
+      app.keyboard.setKey(eDir.Up, false);
+    };
+    this.lefttri.onpointstart = function() {
+      self.lefttri.fill = "yellow";
+      app.keyboard.setKey(eDir.Left, true);
+    };
+    this.lefttri.onpointend = function() {
+      self.lefttri.fill = "white";
+      app.keyboard.setKey(eDir.Left, false);
+    };this.downtri.onpointstart = function() {
+      self.downtri.fill = "yellow";
+      app.keyboard.setKey(eDir.Down, true);
+    };
+    this.downtri.onpointend = function() {
+      self.downtri.fill = "white";
+      app.keyboard.setKey(eDir.Down, false);
+    };this.righttri.onpointstart = function() {
+      self.righttri.fill = "yellow";
+      app.keyboard.setKey(eDir.Right, true);
+    };
+    this.righttri.onpointend = function() {
+      self.righttri.fill = "white";
+      app.keyboard.setKey(eDir.Right, false);
+    };
+    this.okbutton.onpointstart = function() {
+      self.okbutton.fill = "yellow";
+      app.keyboard.setKey(eKey.OK, true);
+    };
+    this.okbutton.onpointend = function() {
+      self.okbutton.fill = "white";
+      app.keyboard.setKey(eKey.OK, false);
+    };
+    this.cancelbutton.onpointstart = function() {
+      self.cancelbutton.fill = "yellow";
+      app.keyboard.setKey(eKey.Cancel, true);
+    };
+    this.cancelbutton.onpointend = function() {
+      self.cancelbutton.fill = "white";
+      app.keyboard.setKey(eKey.Cancel, false);
+    };
+    this.savebutton.onpointstart = function() {
+      self.savebutton.alpha = 1;
+      app.keyboard.setKey(eKey.Save, true);
+    };
+    this.savebutton.onpointend = function() {
+      self.savebutton.alpha = 0.8;
+      app.keyboard.setKey(eKey.Save, false);
+    };this.loadbutton.onpointstart = function() {
+      self.loadbutton.alpha = 0.8;
+      app.keyboard.setKey(eKey.Load, true);
+    };
+    this.loadbutton.onpointend = function() {
+      self.loadbutton.alpha = 0.8;
+      app.keyboard.setKey(eKey.Load, false);
+    };
+  },
+}),
+/*
+ * セーブデータクラス
+ */
+phina.define("SaveData", {
+  // 継承
+  superClass: 'Element',
+  // コンストラクタ
+  init: function(main) {
+    this.superInit();
+    this.main = main;
+    this.gamedata = new GameData;
+  },
+  update: function() {
+    
+  },
+  save: function() {
+    let self = this;
+    this.gamedata.playerStatus = this.main.player.getStatus();
+    this.gamedata.playerSatiety = this.main.player.satiety;
+    this.gamedata.playerEquipment = this.main.player.equipment;
+    this.gamedata.enemyStatuses = [];
+    (this.main.enemies.length).times(function(i){
+      let status = self.main.enemies[i].getStatus();
+      self.gamedata.enemyStatuses.push(status);
+    });
+    this.gamedata.items = [];
+    (this.main.items.length).times(function(i){
+      let data = Object.assign({}, self.main.items[i].itemdata);
+      data.datatable = (data.datatable===equipdatatable);
+      self.gamedata.items.push(data);
+    });
+    this.gamedata.playerInventory = new ActorInventory(this.main.player.inventory.size);
+    (self.main.player.inventory.itemData.length).times(function(i){
+      let data = Object.assign({}, self.main.player.inventory.itemData[i]);
+      data.datatable = (data.datatable===equipdatatable);
+      self.gamedata.playerInventory.itemData.push(data);
+    });
+    this.gamedata.mapFloor = this.main.field.map;
+    this.gamedata.mapCollision = this.main.field.collision;
+    localStorage.setItem('GameData', JSON.stringify(this.gamedata));
+//    jsontext = JSON.stringify(this.gamedata);
+    message.addText("セーブしました", "red");
+  },
+  loadData: function(obj) {
+    let self = this;
+    if(!obj){
+      message.addText('セーブデータが見つかりません', "red");
+      message.addText('ロードに失敗しました', "red");
+      return;
+    }
+    this.gamedata.playerStatus = obj.playerStatus;
+    this.gamedata.playerSatiety = obj.playerSatiety;
+    this.gamedata.playerInventory = obj.playerInventory;
+    this.gamedata.playerEquipment = obj.playerEquipment;
+    this.gamedata.enemyStatuses = obj.enemyStatuses;
+    this.gamedata.items = obj.items;
+    this.gamedata.mapFloor = 
+      new Array2D(obj.mapFloor.data, obj.mapFloor.w, obj.mapFloor.h);
+    this.gamedata.mapCollision = 
+      new Array2D(obj.mapCollision.data, obj.mapCollision.w, obj.mapCollision.h);
+    (this.main.enemies.length).times(function(i){
+      self.main.enemies[i].remove();
+    });
+    this.main.enemies = [];
+    let eparams = AssetManager.get("json", "enemy_params").data;
+    (this.gamedata.enemyStatuses.length).times(function(i){
+      let status = self.gamedata.enemyStatuses[i];
+      self.main.enemies.push(new Enemy(self.main.field, status, eparams));
+      self.gamedata.enemyStatuses.push(status);
+    });
+    (this.main.items.length).times(function(i){
+      self.main.items[i].remove();
+    })
+    this.main.items = [];
+    (this.gamedata.items.length).times(function(i){
+      let data = self.gamedata.items[i];
+      if(data.datatable){
+        data.datatable = equipdatatable;
+      }else{
+        data.datatable = itemdatatable;
+      }
+      self.main.items.push(new Item(self.main.field, i, data).addChildTo(self.main.field));
+      self.gamedata.items.push(data);
+    });
+    this.main.field.loadData(this.gamedata);
+    this.main.player.loadData(this.gamedata);
+    message.addText("ロードしました", "red");
+  },
+  getDataFile: function(fname){
+    this.save();
+    let content = JSON.stringify(this.gamedata);
+    let blob = new Blob([ content ], { "type" : "text/plain" });
+    if(window.navigator.msSaveBlob) { 
+      window.navigator.msSaveBlob(blob, fname); 
+      window.navigator.msSaveOrOpenBlob(blob, fname); 
+    }else{
+      var element = document.createElement("a");
+      element.download = fname;
+      element.href = window.URL.createObjectURL(blob);
+      element.click();
+    }
+  },
+  readDataFileClick: function(){
+    const file = document.getElementById('file');
+    file.click();
+    this.readDataFile();
+  },
+  readDataFile: function(){
+    if(window.File && window.FileReader && window.FileList && window.Blob) {
+      let self = this;
+      this.cnt = 0;
+      function loadFile(e) {
+        // ファイル情報を取得
+        let fileData = e.target.files[0];
+        let type = escape(fileData.name).split('.');
+        if (!(type[type.length - 1].toLowerCase() == 'svd')&&self.cnt<1) {
+            message.addText('svdファイルを選択してください', "red");
+            message.addText('ロードに失敗しました', "red");
+            self.cnt++;
+            return;
+        }
+        let reader = new FileReader();
+        reader.onload = e => {
+          if(self.cnt<1){
+            self.loadData(JSON.parse(e.target.result));
+            self.cnt++;
+          }
+        };
+        reader.readAsText(fileData, "UTF-8");
+      }
+      file.addEventListener('change', loadFile, false);
+    } else {
+      file.style.display = 'none';
+      message.addText('File APIに対応していません', "red");
+      message.addText('ロードに失敗しました', "red");
+    }
+  },
+});
+
+phina.main(function() {
+  var app = GameApp({
+//    assets: ASSETS,
+  });
+  app.fps = 30;
+  app.enableStats();
+  app.replaceScene(SceneFlow());
+  app.run();
+});</script>
+    <div align="right">
+      <label for="file">
+        読込
+        <input type="file" id="file" style="display:none;" accept='.svd' onclick="readData();">
+      </label>
+    </div>
+    <div>　</div>
+    <div align="right">
+      <input type="button" class="btn-square" value="取得" onclick="download();">
+    </div>
+    <div>　</div>
+    <div align="right">
+      <input type="button" class="btn-square" value="削除" onclick="localStorage.removeItem('GameData');">
+    </div>
   </body>
 </html>
+
