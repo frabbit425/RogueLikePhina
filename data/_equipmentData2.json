@@ -1,0 +1,5 @@
+[{"id":"NONE","type":"Weapon","name":"なし","atk":0,"def":0,"extra":null,"ext_val":null,"buy":0,"sell":0,"sort":null,"detail":"","image":"","size":null},
+{"id":"STICK","type":"Weapon","name":"きのぼう","atk":2,"def":0,"extra":null,"ext_val":null,"buy":50,"sell":17,"sort":100,"detail":"あたるといたい","image":"woodstick","size":1.8},
+{"id":"DAGGER","type":"Weapon","name":"だがー","atk":6,"def":0,"extra":null,"ext_val":null,"buy":250,"sell":87,"sort":101,"detail":"なげてもよし","image":"dagger","size":1.8},
+{"id":"RAPIER","type":"Weapon","name":"れいぴあ","atk":10,"def":0,"extra":null,"ext_val":null,"buy":700,"sell":245,"sort":102,"detail":"ついてこうげき","image":"rapier","size":1.8},
+{"id":"BOW","type":"Weapon","name":"ゆみ","atk":2,"def":0,"extra":null,"ext_val":null,"buy":700,"sell":245,"sort":103,"detail":"ゆみやがひつよう","image":"bow","size":1.8}]
