@@ -67,16 +67,20 @@ const eAct = {
   // インベントリ
   OpenInventory: 1,
   CloseInventory: 2,
+  // アイテム移動
+  ItemMoveBegin: 3,
+  ItemMove: 4,
+  ItemMoveEnd: 5,
   // アクション
-  ActBegin: 3, // 開始
-  Act: 4,      // 実行中
-  ActEnd: 5,   // 終了
+  ActBegin: 6, // 開始
+  Act: 7,      // 実行中
+  ActEnd: 8,   // 終了
   // 移動
-  MoveBegin: 6, // 開始
-  Move: 7,      // 移動中
-  MoveEnd: 8,   // 完了
+  MoveBegin: 9, // 開始
+  Move: 10,      // 移動中
+  MoveEnd: 11,   // 完了
 
-  TurnEnd: 9,   // ターン終了
+  TurnEnd: 12,   // ターン終了
 }
 const eKey = {
   OK: "z",
@@ -171,7 +175,7 @@ var ASSETS = {
     'player_params': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/params/_playerParameter2.json',
     'enemy_params': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/params/_enemyParameter.json',
     'item_data': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/data/_itemData.json',
-    'equipment_data': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/data/_equipmentData2.json',
+    'equipment_data': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/data/_equipmentData3.json',
     'message_data': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/data/_messageData.json',
   },
   tmx: {
@@ -298,14 +302,12 @@ phina.define('MainScene', {
     itemdatatable = AssetManager.get("json", "item_data").data;
     equipdatatable = AssetManager.get("json", "equipment_data").data;
     this.items = [];
-    (1).times(function(i) {
-      self.items.push(Item(self.field, self.items.length, new ItemData(8, itemdatatable, 6, 5)));
-      self.items[self.items.length-1].addChildTo(self.field);
-    });
-    (1).times(function(i) {
-      self.items.push(Item(self.field, self.items.length, new ItemData(1, equipdatatable, 6, 8)));
-      self.items[self.items.length-1].addChildTo(self.field);
-    });
+    self.items.push(Item(self.field, self.items.length, new ItemData(8, itemdatatable, 6, 5)));
+    self.items[self.items.length-1].addChildTo(self.field);
+    self.items.push(Item(self.field, self.items.length, new ItemData(1, equipdatatable, 6, 8)));
+    self.items[self.items.length-1].addChildTo(self.field);
+    self.items.push(Item(self.field, self.items.length, new ItemData(1, itemdatatable, 4, 5)));
+    self.items[self.items.length-1].addChildTo(self.field);
     let pstatus = new ActorStatus();
     pstatus.position = new Pos2D(4, 6);
     pstatus.direction = eDir.Left;
@@ -463,6 +465,9 @@ phina.define("Field", {
     this.collision = gamedata.mapCollision;
   },
   isCollide: function(gridX, gridY, actor){
+    if(gridX<0||gridY<0||gridX>this.map.w||gridY>this.map.h){
+      return true;
+    }
     if(this.collision.get(gridX, gridY)>0){
       return true;
     }
@@ -478,7 +483,7 @@ phina.define("Field", {
       if(actor !== self.main.enemies[i]){
         let pos = self.main.enemies[i].getGridPosition(true);
         if(pos.x==gridX&&pos.y==gridY){
-          res = true;
+          res = self.main.enemies[i];
         }
       }
     });
@@ -634,6 +639,7 @@ phina.define("Sequence", {
   update: function(app) {
     let self = this;
     let list = [];
+    let act;
     switch(this.state){
       case eAct.KeyInput:
         this.main.player.proc(app);
@@ -667,14 +673,24 @@ phina.define("Sequence", {
         }
         break;
       case eAct.OpenInventory:
-        let act = this.main.player.getAct();
+        act = this.main.player.getAct();
         if(act == eAct.ActEnd){
           this.state = eAct.Act;
         }else{
           if(act == eAct.CloseInventory){
             this.state = eAct.KeyInput;
           }
+          if(act == eAct.MoveItemBegin){
+            this.state = eAct.ItemMove;
+          }
           this.main.player.proc(app);
+        }
+        break;
+      case eAct.ItemMove:
+        this.main.player.proc();
+        act = this.main.player.getAct();
+        if(act == eAct.ActEnd){
+          this.state = eAct.Act;
         }
         break;
       case eAct.Act:
@@ -747,7 +763,6 @@ phina.define("Sequence", {
               self.main.enemies[self.donotenemiesid[i]].resetDirection();
             }
           });
-          self.main.player.proc();
           this.state = eAct.KeyInput;
         }
         break;
@@ -819,7 +834,7 @@ phina.define("Sequence", {
               self.main.enemies[self.donotenemiesid[i]].resetDirection();
             }
           });
-          self.main.player.proc();
+          this.main.player.proc();
           this.state = eAct.KeyInput;
         }
         break;
@@ -831,7 +846,7 @@ phina.define("Sequence", {
     let res;
     let list = alist.slice();
     (list.length).times(function(i){
-      if(!self.main.enemies[list[i]]){
+      if(!self.main.enemies[list[i]]||self.main.enemies[list[i]].getAct()==eAct.KeyInput){
         alist.splice(i, 1);
         list.splice(i, 1);
       }else{
@@ -893,6 +908,12 @@ phina.define("Actor", {
       case eAct.CloseInventory:
         this.act = eAct.KeyInput;
         break;
+      case eAct.ItemMoveBegin:
+        this.act = eAct.ItemMove;
+        break;
+      case eAct.ItemMoveEnd:
+        this.act = eAct.ActEnd;
+        break;
       case eAct.ActBegin:
         this.action();
         break;
@@ -922,6 +943,13 @@ phina.define("Actor", {
     }
   },
   damage: function(str, def, dir){
+    this.lookBack(dir);
+    this.resetDirection();
+    let dmg = Math.round(str*(Math.pow(0.9375, def)));
+    this.params.hp -= dmg;
+    return dmg;
+  },
+  lookBack: function(dir){
     switch(dir){
       case eDir.Left:
         this.direction = eDir.Right;
@@ -936,10 +964,6 @@ phina.define("Actor", {
         this.direction = eDir.Up;
         break;
     }
-    this.resetDirection();
-    let dmg = Math.round(str*(Math.pow(0.9375, def)));
-    this.params.hp -= dmg;
-    return dmg;
   },
   removeActor: function(){
     this.field.removeActor(this.params.id);
@@ -1036,8 +1060,8 @@ phina.define("Actor", {
   getPlayer: function(){
     return this.field.getPlayer();
   },
-  isCollide: function(gridX, gridY, direction){
-    return this.field.isCollide(gridX, gridY, direction);
+  isCollide: function(gridX, gridY){
+    return this.field.isCollide(gridX, gridY, this);
   },
   pickUp: function(){
     return this.field.getFieldItem(this.px, this.py);
@@ -1048,8 +1072,14 @@ phina.define("Actor", {
   closeInventory: function(){
     this.act = eAct.CloseInventory;
   },
-  choiceItem: function(item){
+  choiceItem: function(){
     this.act = eAct.ActEnd;
+  },
+  throwItem: function(){
+    this.act = eAct.ItemMoveBegin;
+  },
+  itemMoveEnd: function(){
+    this.act = eAct.ItemMoveEnd;
   },
   actBegin: function(direction){
     if(this.field.isScreenView(this.x, this.y)){
@@ -1094,7 +1124,7 @@ phina.define("Actor", {
   moveBegin: function(dir){
     this.direction = dir;
     this.nextPos = DirUtillMove(new Pos2D(this.px, this.py), this.direction);
-    if(!this.isCollide(this.nextPos.x, this.nextPos.y, this)){
+    if(!this.isCollide(this.nextPos.x, this.nextPos.y)){
       this.act = eAct.MoveBegin;
     }else{
       this.nextPos = new Pos2D(this.px, this.py);
@@ -1232,6 +1262,7 @@ phina.define("Player", {
     this.equipment = new ActorEquipment();
     this.isAction = false;
     this.superMethod("setCameraCenter", true);
+    this.thitem;
   },
   update: function() {
     this.superMethod("update");
@@ -1278,21 +1309,13 @@ phina.define("Player", {
       case eAct.OpenInventory:
         inventory.proc(app);
         break;
+      case eAct.ItemMove:
+        this.thitem.proc();
+        break;
       case eAct.Move:
         this.superMethod("proc");
         if(this.superMethod("getAct")==eAct.MoveEnd){
-          let item = this.superMethod("pickUp");
-          if(item){
-            if(this.inventory.items.length < this.inventory.size){
-              this.inventory.items.push(item);
-              this.inventory.itemData.push(item.itemdata);
-              this.superMethod("removeItem", item.id);
-              item.remove();
-              message.readText(8, item.itemdata.name);
-            }else{
-              message.readText(13, item.itemdata.name);
-            }
-          }
+          this.pickUp(true);
         }
         break;
       case eAct.ActEnd:
@@ -1350,22 +1373,30 @@ phina.define("Player", {
   },
   useItem: function(ivtidx){
     this.isAction = false;
-    this.inventory.items[ivtidx].use(this);
     this.superMethod("choiceItem");
-    this.inventory.items.splice(ivtidx, 1);
-    this.inventory.itemData.splice(ivtidx, 1);
-    if(this.equipment.weapon > ivtidx){
-      this.equipment.weapon--;
-    }
-    if(this.equipment.shield > ivtidx){
-      this.equipment.shield--;
-    }
-    if(this.equipment.accessory > ivtidx){
-      this.equipment.accessory--;
+    if(ivtidx<0){
+      let item = this.superMethod("pickUp");
+      item.use(this);
+      this.superMethod("removeItem", item.id);
+      item.remove();
+    }else{
+      this.inventory.items[ivtidx].use(this);
+      this.inventory.items.splice(ivtidx, 1);
+      this.inventory.itemData.splice(ivtidx, 1);
+      if(this.equipment.weapon > ivtidx){
+        this.equipment.weapon--;
+      }
+      if(this.equipment.shield > ivtidx){
+        this.equipment.shield--;
+      }
+      if(this.equipment.accessory > ivtidx){
+        this.equipment.accessory--;
+      }
     }
   },
   equip: function(ivtidx){
     this.isAction = false;
+    this.superMethod("choiceItem");
     let data = this.inventory.itemData[ivtidx];
     let atk = data.datatable[data.id].atk;
     let def = data.datatable[data.id].def;
@@ -1373,24 +1404,18 @@ phina.define("Player", {
       case "Weapon":
         if(this.equipment.weapon > -1){
           this.removeEquipment(this.equipment.weapon);
-        }else{
-          this.superMethod("choiceItem");
         }
         this.equipment.weapon = ivtidx;
         break;
       case "Shield":
         if(this.equipment.shield > -1){
           this.removeEquipment(this.equipment.shield);
-        }else{
-          this.superMethod("choiceItem");
         }
         this.equipment.shield = ivtidx;
         break;
       case "Accessory":
         if(this.equipment.accessory > -1){
           this.removeEquipment(this.equipment.accessory);
-        }else{
-          this.superMethod("choiceItem");
         }
         this.equipment.accessory = ivtidx;
         break;
@@ -1399,6 +1424,7 @@ phina.define("Player", {
     data.isEquip = true;
     this.equipment.extParams.str += atk;
     this.equipment.extParams.def += def;
+    message.readText(6, data.name);
   },
   removeEquipment: function(ivtidx){
     this.isAction = false;
@@ -1421,17 +1447,17 @@ phina.define("Player", {
     data.isEquip = false;
     this.equipment.extParams.str -= atk;
     this.equipment.extParams.def -= def;
+    message.readText(7, data.name);
   },
   put: function(ivtidx){
     this.isAction = false;
+    this.superMethod("choiceItem");
     let pos = this.superMethod("getGridPosition", false);
     let field = this.superMethod("getField");
     let data = this.inventory.itemData[ivtidx];
     data.pos = pos;
     if(data.isEquip){
       this.removeEquipment(ivtidx);
-    }else{
-      this.superMethod("choiceItem");
     }
     let item = Item(field, -1, data);
     item.setId(field.addItem(item));
@@ -1447,9 +1473,62 @@ phina.define("Player", {
     if(this.equipment.accessory > ivtidx){
       this.equipment.accessory--;
     }
+    message.readText(14, item.itemdata.name);
   },
-  swap: function(ivtid){
-    
+  swap: function(ivtidx){
+    this.pickUp(false);
+    this.put(ivtidx);
+  },
+  pickUp: function(isJudge){
+    this.isAction = false;
+    this.superMethod("choiceItem");
+    let item = this.superMethod("pickUp");
+    if(item){
+      if(!isJudge||this.inventory.items.length < this.inventory.size){
+        this.inventory.items.push(item);
+        this.inventory.itemData.push(item.itemdata);
+        this.superMethod("removeItem", item.id);
+        item.remove();
+        message.readText(8, item.itemdata.name);
+      }else{
+        message.readText(12);
+        message.readText(13, item.itemdata.name);
+      }
+    }
+  },
+  throwItem: function(ivtidx){
+    this.isAction = false;
+    let item;
+    if(ivtidx<0){
+      item = this.superMethod("pickUp");
+    }else{
+      let pos = this.superMethod("getGridPosition", false);
+      let field = this.superMethod("getField");
+      item = this.inventory.items[ivtidx];
+      if(item.itemdata.isEquip){
+        this.removeEquipment(ivtidx);
+      }
+      item.itemdata.pos = pos;
+      item.px = pos.x;
+      item.py = pos.y;
+      item.setId(field.addItem(item));
+      item.addChildTo(field);
+      this.inventory.items.splice(ivtidx, 1);
+      this.inventory.itemData.splice(ivtidx, 1);
+      if(this.equipment.weapon > ivtidx){
+        this.equipment.weapon--;
+      }
+      if(this.equipment.shield > ivtidx){
+        this.equipment.shield--;
+      }
+      if(this.equipment.accessory > ivtidx){
+        this.equipment.accessory--;
+      }
+    }
+    this.thitem = item;
+    this.superMethod("throwItem");
+    this.thitem.throwItem(5, this);
+    message.readText(17, this.superMethod("getName"), this.thitem.itemdata.name);
   },
   addSatiety: function(add){
     if(add>0){
@@ -1457,6 +1536,8 @@ phina.define("Player", {
       if(this.satiety.value>this.satiety.max){
         this.satiety.value = this.satiety.max;
         message.readText(20);
+      }else{
+        message.readText(21);
       }
     }else{
       this.satiety.value += Math.ceil(this.satiety.max/100*(-add));
@@ -1601,16 +1682,38 @@ phina.define("Item", {
     this.field = f;
     this.id = id;
     this.itemdata = itemdata;
+    this.px = itemdata.pos.x;
+    this.py = itemdata.pos.y;
     this.wx = itemdata.pos.x*DRAWSIZE;
     this.wy = itemdata.pos.y*DRAWSIZE;
     this.isCameraCenter = false;
+    this.isNextPos = itemdata.pos;
+    this.throwDirection;
   },
   update: function() {
     if(this.isCameraCenter){
       this.field.setCameraPosition(this.wx, this.wy);
     }
-    this.x = this.field.gridToScreenX(this.itemdata.pos.x);
-  	this.y = this.field.gridToScreenY(this.itemdata.pos.y)+DRAWSIZE/6;
+    this.x = this.field.gridToScreenX(this.px);
+  	this.y = this.field.gridToScreenY(this.py)+DRAWSIZE/6;
+  	this.itemdata.pos.x = this.px;
+  	this.itemdata.pos.y = this.py;
+  },
+  proc: function(){
+    if(!this.tweener.playing){
+      let actor = this.field.isCollide(this.px, this.py, this);
+      if(actor){
+        this.field.removeItem(this.id);
+        this.remove();
+        if(actor instanceof Actor){
+          this.throwAttack(actor);
+        }else{
+          message.readText(16, this.itemdata.name);
+        }
+      }
+      this.field.getPlayer().itemMoveEnd();
+      this.itemdata.pos = this.nextPos;
+    }
   },
   setId: function(id){
     this.id = id;
@@ -1619,8 +1722,9 @@ phina.define("Item", {
     let name, hp, food;
     switch(this.itemdata.datatable[this.itemdata.id].type){
       case "Food":
+        name = this.itemdata.name;
         food = this.itemdata.datatable[this.itemdata.id].food;
-        this.useFood(food);
+        this.useFood(food, name);
         break;
       case "Medicine":
         name = this.itemdata.name;
@@ -1630,15 +1734,112 @@ phina.define("Item", {
         break;
     }
   },
-  useFood: function(food){
-    message.readText(21);
+  useFood: function(food, name){
+    message.readText(5, name);
     this.field.getPlayer().addSatiety(food);
   },
   useMedicine: function(actor, name, hp, food){
     message.readText(5, name);
     let val = actor.addHp(hp);
-    message.readText(18, actor.name, val);
+    message.readText(18, actor.getName(), val);
     this.field.getPlayer().addSatiety(food);
+  },
+  throwAttack: function(actor){
+    let atk = 0;
+    if(this.itemdata.datatable === equipdatatable){
+      atk = this.itemdata.datatable[this.itemdata.id].throwatk;
+    }else{
+      atk = this.itemdata.datatable[this.itemdata.id].atk;
+    }
+    if(atk>0){
+      actor.damage(atk, this.throwDirection);
+    }else{
+      actor.lookBack(this.throwDirection);
+      let val = actor.addHp(-atk);
+      message.readText(18, actor.getName(), val);
+    }
+  },
+  throwItem: function(dt, actor){
+    let pos = Object.assign({}, this.itemdata.pos);
+    let self = this;
+    let itempos;
+    let ax = 0;
+    let ay = 0;
+    this.throwDirection = actor.getDirection();
+    switch(this.throwDirection){
+      case eDir.Left:
+        itempos = [[0, -1], [0, 1]];
+        ax = -1; break;
+      case eDir.Right:
+        itempos = [[0, -1], [0, 1]];
+        ax = 1; break;
+      case eDir.Up:
+        itempos = [[-1, 0], [1, 0]];
+        ay = -1; break;
+      case eDir.Down:
+        itempos = [[-1, 0], [1, 0]];
+        ay = 1; break;
+    }
+    let isremove = false;
+    (dt).times(function(i){
+      if(isremove){
+        return;
+      }
+      pos.x += ax;
+      pos.y += ay;
+      if(self.field.isCollide(pos.x, pos.y, actor) instanceof Actor){
+        isremove = true;
+        return;
+      }
+    });
+    if(!isremove){
+      let item = this.field.getFieldItem(pos.x, pos.y);
+      let iscol;
+      if(item){
+        isremove = true;
+        (itempos.length).times(function(i){
+          item = self.field.getFieldItem(pos.x+itempos[i][0], pos.y+itempos[i][1]);
+          iscol = self.field.isCollide(pos.x+itempos[i][0], pos.y+itempos[i][1], actor);
+          if(!item&&!iscol){
+            pos.x += itempos[i][0];
+            pos.y += itempos[i][1];
+            isremove = false;
+            return;
+          }
+        });
+        if(isremove){
+          (dt).times(function(i){
+            pos.x -= ax;
+            pos.y -= ay;
+            item = self.field.getFieldItem(pos.x, pos.y);
+            iscol = self.field.isCollide(pos.x, pos.y, actor);
+            if(!item&&!iscol){
+              isremove = false;
+              return;
+            }
+          });
+        }
+      }
+    }
+    this.nextPos = pos;
+    this.itemdata.pos = this.nextPos;
+    this.move();
+  },
+  move: function(){
+    if(this.field.isScreenView(this.x, this.y)){
+      this.tweener.clear();
+      this.tweener.to({
+        wx:this.field.gridToWorldX(this.nextPos.x),
+        px:this.nextPos.x,
+        wy:this.field.gridToWorldY(this.nextPos.y),
+        py:this.nextPos.y,
+        },300,"swing");
+    }else{
+      this.wx = this.field.gridToWorldX(this.nextPos.x);
+      this.px = this.nextPos.x;
+      this.wy = this.field.gridToWorldY(this.nextPos.y);
+      this.py = this.nextPos.y;
+    }
   },
 });
 /*
@@ -2033,7 +2234,11 @@ phina.define("Inventory", {
       this.closeWindow();
       switch(this.subselect[this.subp].children[0].text){
         case "つかう":
-          this.main.player.useItem(this.selectitem);
+          if(this.selectitem == this.footitemid){
+            this.main.player.useItem(-1);
+          }else{
+            this.main.player.useItem(this.selectitem);
+          }
           break;
         case "そうび":
           this.main.player.equip(this.selectitem);
@@ -2047,6 +2252,15 @@ phina.define("Inventory", {
         case "こうかん":
           this.main.player.swap(this.selectitem);
           break;
+        case "ひろう":
+          this.main.player.pickUp(true);
+          break;
+        case "なげる":
+          if(this.selectitem == this.footitemid){
+            this.main.player.throwItem(-1);
+          }else{
+            this.main.player.throwItem(this.selectitem);
+          }
       }
     }
   },
