@@ -88,9 +88,17 @@ const eKey = {
   Save: "s",
   Load: "l",
 }
+const eNodeStatus = {
+  None: 0,
+  Open: 1,
+  Closed: 2,
+}
 //var mapchip = [0, 1, 2, 3, 4];
-const mapchip = ["grass", "soil", "sand", "water", "stone"];
+const MAPCHIPNAME = ["grass", "soil", "sand", "water", "stone"];
+const NODEOPENPOS = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+const randRange = (min, max) => Math.floor(Math.random() * (max - min) + min);
 const DRAWSIZE = 64;
+const MINIDRAWSIZE = 5;
 const GRIDWIDTH = 14;
 const GRIDHEIGHT = 15;
 const TESTMAP =
@@ -181,6 +189,9 @@ var ASSETS = {
   tmx: {
     'testmap': 'https://cdn.jsdelivr.net/gh/frabbit425/RogueLikePhina@master/map/testmap.tmx',
   },
+  dungeon: {
+    'dg_info':'',
+  },
 };
 var inventory;
 var message;
@@ -236,12 +247,12 @@ function Params(i, l, h, hm, s, d, e, x){
   this.exp = e;   // 獲得した経験値
   this.xp = x;    // 倒したときに得られる経験値
 }
-function ItemData(itemid, datatable, x, y){
+function ItemData(itemid, datatable, pos){
   this.id = itemid;
   this.name = datatable[itemid].name;
   this.datatable = datatable;
   this.isEquip = false;
-  this.pos = new Pos2D(x, y);
+  this.pos = pos;
 }
 function GameData(){
   this.playerStatus = null;
@@ -255,8 +266,17 @@ function GameData(){
   
   this.mapFloor = null;
   this.mapCollision = null;
+  this.minimap = null;
 }
-//document.getElementById('file').style.zIndex = 30;
+function Node(x, y){
+  this.x = x;
+  this.y = y;
+  this.st = eNodeStatus.None;
+  this.acost = 0;
+  this.ecost = 0;
+  this.score = 0;
+  this.pnode = null;
+}
 var DirUtillMove = function(position, dir){
   let pos = new Pos2D(position.x, position.y);
   switch(dir){
@@ -289,27 +309,88 @@ phina.define("Array2D", {
   get: function(x, y){
     return this.data[x+y*this.w];
   },
+  fillRect: function(x, y, w, h, v){
+    let self = this;
+    (w).times(function(i){
+      (h).times(function(j){
+        self.set(x+i, y+j, v);
+      });
+    });
+  },
+  fillRectLTRB: function(left, top, right, bottom, v){
+    this.fillRect(left, top, right - left, bottom - top, v);
+  }
 });
+phina.define("DgRect", {
+  init: function(){
+    this.left = 0;
+    this.top = 0;
+    this.right = 0;
+    this.bottom = 0;
+  },
+  set: function(left, top, right, bottom){
+    this.left = left;
+    this.top = top;
+    this.right = right;
+    this.bottom = bottom;
+  },
+  get: function(x, y){
+    return this.data[x+y*this.w];
+  },
+  getWidth: function(){
+    return this.right - this.left;
+  },
+  getHeight: function(){
+    return this.bottom - this.top;
+  },
+  getMeasure: function(){
+    return this.getWidth() * this.getHeight();
+  },
+  copy: function(rect){
+    this.left = rect.left;
+    this.top = rect.top;
+    this.right = rect.right;
+    this.bottom = rect.bottom;
+  }
+});
+phina.define("DgDivision",{
+  init: function(){
+    this.outer = new DgRect();
+    this.room = new DgRect();
+    this.road = null;
+    this.connect = [];
+  },
+  createRoad: function(left, top, right, bottom){
+    this.road = new DgRect();
+    this.road.set(left, top, right, bottom);
+  }
+});
+/*
+ * メインシーン
+ */
 phina.define('MainScene', {
   superClass: 'DisplayScene',
   
   init: function() {
     this.superInit();
-    this.field = Field(this, 4, 6)
+    let dg = AssetManager.get('dungeon', 'dg_info')[1];
+    this.field = Field(this, dg, 4, 6)
       .setPosition(this.gridX.span(0), this.gridY.span(0))
       .addChildTo(this);
     let self = this;
     itemdatatable = AssetManager.get("json", "item_data").data;
     equipdatatable = AssetManager.get("json", "equipment_data").data;
     this.items = [];
-    self.items.push(Item(self.field, self.items.length, new ItemData(8, itemdatatable, 6, 5)));
-    self.items[self.items.length-1].addChildTo(self.field);
-    self.items.push(Item(self.field, self.items.length, new ItemData(1, equipdatatable, 6, 8)));
-    self.items[self.items.length-1].addChildTo(self.field);
-    self.items.push(Item(self.field, self.items.length, new ItemData(1, itemdatatable, 4, 5)));
-    self.items[self.items.length-1].addChildTo(self.field);
+    let itemsid = [8, 1, 1];
+    let itemstable = [itemdatatable, equipdatatable, itemdatatable];
+    let ipos;
+    (dg.ITEMNUM).times(function(i){
+      ipos = self.field.setCharaPosition();
+      self.items.push(Item(self.field, self.items.length, new ItemData(itemsid[i], itemstable[i], ipos)));
+      self.items[self.items.length-1].addChildTo(self.field);
+    });
     let pstatus = new ActorStatus();
-    pstatus.position = new Pos2D(4, 6);
+    pstatus.position = this.field.setCharaPosition();
     pstatus.direction = eDir.Left;
     pstatus.params = new Params(0, 1, 30, 30, 5, 5, 0, 10);
     let params = AssetManager.get("json", "player_params").data;
@@ -319,9 +400,9 @@ phina.define('MainScene', {
     let ex = [3, 5];
     let ey = [4, 4];
     params = AssetManager.get("json", "enemy_params").data;
-    (2).times(function(i) {
+    (dg.ENEMYNUM).times(function(i) {
       let estatus = new ActorStatus();
-      estatus.position = new Pos2D(ex[i], ey[i]);
+      estatus.position = self.field.setCharaPosition();
       estatus.direction = eDir.Left;
       estatus.params = new Params(i+1, 1, 30, 30, 5, 3, 0, 10);
       self.enemies.push(Enemy(self.field, estatus, params));
@@ -333,28 +414,26 @@ phina.define('MainScene', {
     this.displayinfo = DisplayInfo(this).addChildTo(this);
     inventory = Inventory(this).addChildTo(this);
     let msgdata = AssetManager.get("json", "message_data").data;
-    message = Message(msgdata, "").addChildTo(this);
     controller = Controller().addChildTo(this);
+    message = Message(msgdata, "").addChildTo(this);
     savedata = SaveData(this).addChildTo(this);
   },
   update: function() {
-    this.field.camera.px = this.field.worldToGridX(this.field.camera.wx);
-    this.field.camera.py = this.field.worldToGridY(this.field.camera.wy);
+    
   }
 });
 phina.define("Field", {
   // 継承
   superClass: 'DisplayElement',
   // コンストラクタ
-  init: function(m, x, y) {
+  init: function(m, dg, x, y) {
     // 親クラス初期化
     this.superInit();
     this.main = m;
-    this.map = this.readTestMap(TESTMAP, TESTMAPWIDTH, TESTMAPHEIGHT, 3, 0);
-    this.collision = this.readTestMap(TESTMAP, TESTMAPWIDTH, TESTMAPHEIGHT, 3, -1);
+    this.dg = dg;
 //    this.map = this.read("testmap", "floor");
 //    this.collision = this.read("testmap", "collision");
-    this.create(this.map);
+    this.create(this.dg.layer);
     this.camera = RectangleShape({
       width:DRAWSIZE,
       height:DRAWSIZE,
@@ -367,7 +446,6 @@ phina.define("Field", {
     this.camera.wy = y*DRAWSIZE;
     this.camera.alpha = 0.5;
   },
-  
   update: function(app){
     let self = this;
     let subx = 0;
@@ -388,6 +466,8 @@ phina.define("Field", {
       });
     });
     this.readActors();
+    this.camera.px = this.worldToGridX(this.camera.wx);
+    this.camera.py = this.worldToGridY(this.camera.wy);
   },
   read: function(fname, layer){
     let tmx = AssetManager.get("tmx", fname);
@@ -401,7 +481,21 @@ phina.define("Field", {
     });
     return Array2D(mapdata, w, h)
   },
+  readMap: function(adata, zero, one){
+    let data = Array2D(new Array(adata.w*adata.h).fill(zero), adata.w, adata.h);
+    (adata.w).times(function(x){
+      (adata.h).times(function(y){
+        data.set(x, y, (adata.get(x, y) == 0 ? zero:one));
+      });
+    });
+    return data;
+  },
   create: function(mapdata){
+    this.map = this.readMap(mapdata, 3, 0);
+    this.collision = this.readMap(mapdata, 3, -1);
+    this.minimap = Array2D(new Array(mapdata.w*mapdata.h).fill(3), mapdata.w, mapdata.h);
+    this.actormarker = Array(this.dg.ENEMYNUM+1);
+    this.itemmarker = Array(this.dg.ITEMNUM);
     this.gridX = Grid({
       width: DRAWSIZE*GRIDWIDTH,
       columns: GRIDWIDTH,
@@ -412,17 +506,118 @@ phina.define("Field", {
       columns: GRIDHEIGHT,
       loop: false,
     });
+    this.miniGridX = Grid({
+      width: MINIDRAWSIZE*mapdata.w,
+      columns: mapdata.w,
+      loop: false,
+    });
+    this.miniGridY = Grid({
+      height: MINIDRAWSIZE*mapdata.h,
+      columns: mapdata.h,
+      loop: false,
+    });
     this.maprect = Array(GRIDWIDTH*GRIDHEIGHT);
-    this.maplabel = Array(GRIDWIDTH*GRIDHEIGHT);
     let self = this;
     (GRIDWIDTH+4).times(function(spanX) {
       (GRIDHEIGHT+2).times(function(spanY) {
         self.maprect[spanX+(spanY)*GRIDWIDTH] = 
         new MapChip().setPosition(self.gridX.span(spanX), self.gridY.span(spanY)+DRAWSIZE/2)
         .addChildTo(self);
-        self.maplabel[spanX+(spanY)*GRIDWIDTH] = Label({
-          text:"",
-        }).addChildTo(self.maprect[spanX+spanY*GRIDWIDTH]);
+      });
+    });
+    this.minimaprect = Array(mapdata.w*mapdata.h).fill(null);
+    (this.actormarker.length).times(function(i){
+      self.actormarker[i] = CircleShape({
+        radius: MINIDRAWSIZE/2,
+        strokeWidth: 0,
+        fill: "red",
+      }).hide();
+    });
+    self.actormarker[0].fill = "gray";
+    (this.itemmarker.length).times(function(i){
+      self.itemmarker[i] = CircleShape({
+        radius: MINIDRAWSIZE/2,
+        strokeWidth: 0,
+        fill: "orange",
+      }).hide();
+    });
+  },
+  completeMinimap: function(){
+    this.minimap = this.readMap(this.dg.layer, 3, -1);
+  },
+  mappingMinimap: function(x, y, dir){
+    let self = this;
+    let isRoom = false;
+    (this.dg.divList.length).times(function(i){
+      let room = self.dg.divList[i].room;
+      if(x>=room.left&&y>=room.top&&x<room.right&&y<room.bottom){
+        self.minimap.fillRectLTRB(room.left, room.top, room.right, room.bottom, -1);
+        isRoom = true;
+      }
+    });
+    if(!isRoom){
+      switch(dir){
+        case eDir.Left:
+          (3).times(function(i){
+            if(self.collision.get(x-i, y)<0){
+              self.minimap.set(x-i, y, -1);
+            }
+          });
+          break;
+        case eDir.Right:
+          (3).times(function(i){
+            if(self.collision.get(x+i, y)<0){
+              self.minimap.set(x+i, y, -1);
+            }
+          });
+          break;
+        case eDir.Up:
+          (3).times(function(i){
+            if(self.collision.get(x, y-i)<0){
+              self.minimap.set(x, y-i, -1);
+            }
+          });
+          break;
+        case eDir.Down:
+          (3).times(function(i){
+            if(self.collision.get(x, y+i)<0){
+              self.minimap.set(x, y+i, -1);
+            }
+          });
+          break;
+      }
+    }
+    (this.actormarker.length).times(function(i){
+      self.actormarker[i].hide();
+    });
+    self.actormarker[0].fill = "gray";
+    (this.itemmarker.length).times(function(i){
+      self.itemmarker[i].hide();
+    });
+    (this.minimap.w).times(function(spanX) {
+      (self.minimap.h).times(function(spanY) {
+        if(self.minimap.get(spanX, spanY) < 0){
+          if(!self.minimaprect[spanX+spanY*self.minimap.w]){
+            self.minimaprect[spanX+spanY*self.minimap.w] = RectangleShape({
+              width: MINIDRAWSIZE,
+              height: MINIDRAWSIZE,
+              fill: "white",
+              strokeWidth: 0,
+            }).setPosition(self.miniGridX.span(spanX)+50, self.miniGridY.span(spanY)-spanY*11+80)
+            .addChildTo(self)
+            .alpha = 0.7;
+          }
+          let item = self.getFieldItem(spanX, spanY);
+          if(item){
+            self.itemmarker[item.id].setPosition(self.miniGridX.span(spanX)+50, self.miniGridY.span(spanY)-spanY*11+80)
+            .addChildTo(self).show();
+          }
+          let actor = self.getFieldActor(spanX, spanY);
+          if(actor){
+            self.actormarker[actor.params.id].setPosition(self.miniGridX.span(spanX)+50, self.miniGridY.span(spanY)-spanY*11+80)
+            .addChildTo(self).show();
+          }
+        }
       });
     });
   },
@@ -463,6 +658,7 @@ phina.define("Field", {
   loadData: function(gamedata){
     this.map = gamedata.mapFloor;
     this.collision = gamedata.mapCollision;
+    this.minimap = gamedata.minimap;
   },
   isCollide: function(gridX, gridY, actor){
     if(gridX<0||gridY<0||gridX>this.map.w||gridY>this.map.h){
@@ -471,22 +667,26 @@ phina.define("Field", {
     if(this.collision.get(gridX, gridY)>0){
       return true;
     }
-    if(actor !== this.main.player){
-      let pos = this.main.player.getGridPosition(true);
-      if(pos.x==gridX&&pos.y==gridY){
-        return true;
+    if(this.main.player){
+      if(actor !== this.main.player){
+        let pos = this.main.player.getGridPosition(true);
+        if(pos.x==gridX&&pos.y==gridY){
+          return true;
+        }
       }
     }
     let self = this;
     let res = false;
-    (this.main.enemies.length).times(function(i){
-      if(actor !== self.main.enemies[i]){
-        let pos = self.main.enemies[i].getGridPosition(true);
-        if(pos.x==gridX&&pos.y==gridY){
-          res = self.main.enemies[i];
+    if(this.main.enemies){
+      (this.main.enemies.length).times(function(i){
+        if(actor !== self.main.enemies[i]){
+          let pos = self.main.enemies[i].getGridPosition(true);
+          if(pos.x==gridX&&pos.y==gridY){
+            res = self.main.enemies[i];
+          }
         }
-      }
-    });
+      });
+    }
     return res;
   },
   isScreenView: function(screenX, screenY){
@@ -495,6 +695,17 @@ phina.define("Field", {
   setCameraPosition: function(worldX, worldY){
     this.camera.wx = worldX;
     this.camera.wy = worldY;
+  },
+  setCharaPosition: function(){
+    while(true){
+      let idx = randRange(0, this.dg.divList.length);
+      let room = this.dg.divList[idx].room;
+      let x = randRange(room.left, room.right+1);
+      let y = randRange(room.top, room.bottom+1);
+      if(!this.isCollide(x, y, null)&&!this.getFieldItem(x, y)){
+        return new Pos2D(x, y);
+      }
+    }
   },
   getFieldActor: function(gridX, gridY){
     let pos = this.main.player.getGridPosition(false);
@@ -515,6 +726,7 @@ phina.define("Field", {
   getFieldItem: function(gridX, gridY){
     let self = this;
     let res = null;
+    if(!this.main.items){ return; }
     (this.main.items.length).times(function(i){
       let pos = self.main.items[i].itemdata.pos;
       if(pos.x==gridX&&pos.y==gridY){
@@ -553,8 +765,236 @@ phina.define("Field", {
   },
 });
 /*
+ * ダンジョン自動生成クラス
+ */
+phina.define("DgGenerator", {
+  init: function(w, h, max, min, mgn, ex, ix) {
+    this.setParams(w, h, max, min, mgn, ex, ix);
+    this.layer = null;
+    this.divList = [];
+  },
+  setParams: function(w, h, max, min, mgn, ex, ix) {
+    this.MAPWIDTH = w;
+    this.MAPHEIGHT = h;
+    this.MAXROOM = max;
+    this.MINROOM = min;
+    this.MAPMERGIN = mgn;
+    this.ENEMYNUM = ex;
+    this.ITEMNUM = ix;
+  },
+  start: function(){
+    this.layer = new Array2D(new Array(this.MAPWIDTH*this.MAPHEIGHT).fill(0), this.MAPWIDTH, this.MAPHEIGHT);
+    this.createDivision(0, 0, this.MAPWIDTH-1, this.MAPHEIGHT-1);
+  },
+  createDivision: function(left, top, right, bottom){
+    let div = DgDivision();
+    div.outer.set(left, top, right, bottom);
+    this.divList.push(div);
+    let isVertical = (randRange(0, 2) == 0);
+    this.splitDivison(isVertical);
+    this.createRoom();
+    this.connectRooms();
+  },
+  splitDivison: function(isVertical){
+    while(true){
+      let parent = this.divList.pop();
+      let child = new DgDivision();
+      if(isVertical){
+        if(!this.checkDivisionSize(parent.outer.getHeight())){
+          this.divList.push(parent);
+          return;
+        }
+        let a = parent.outer.top + (this.MINROOM + this.MAPMERGIN);
+        let b = parent.outer.bottom - (this.MINROOM + this.MAPMERGIN);
+        let ab = b - a;
+        ab = Math.min(ab, this.MAXROOM);
+        let p = a + randRange(0, ab+1);
+        child.outer.set(parent.outer.left, p, parent.outer.right, parent.outer.bottom);
+        parent.outer.bottom = child.outer.top;
+        if(parent.outer.getHeight()>child.outer.getHeight()){
+          this.divList.push(child);
+          this.divList.push(parent);
+        }else{
+          this.divList.push(parent);
+          this.divList.push(child);
+        }
+      }else{
+        if(!this.checkDivisionSize(parent.outer.getWidth())){
+          this.divList.push(parent);
+          return;
+        }
+        let a = parent.outer.left + (this.MINROOM + this.MAPMERGIN);
+        let b = parent.outer.right - (this.MINROOM + this.MAPMERGIN);
+        let ab = b - a;
+        ab = Math.min(ab, this.MAXROOM);
+        let p = a + randRange(0, ab+1);
+        child.outer.set(p, parent.outer.top, parent.outer.right, parent.outer.bottom);
+        parent.outer.right = child.outer.left;
+        if(parent.outer.getWidth()>child.outer.getWidth()){
+          this.divList.push(child);
+          this.divList.push(parent);
+        }else{
+          this.divList.push(parent);
+          this.divList.push(child);
+        }
+      }
+      isVertical = !isVertical;
+    }
+  },
+  checkDivisionSize: function(size){
+    return size > (this.MINROOM + this.MAPMERGIN) * 2 + 1;
+  },
+  createRoom: function(){
+    let self = this;
+    (self.divList.length).times(function(i){
+      let div = self.divList[i];
+      let dw = div.outer.getWidth() - self.MAPMERGIN;
+      let dh = div.outer.getHeight() - self.MAPMERGIN;
+      let sw = randRange(self.MINROOM, dw);
+      let sh = randRange(self.MINROOM, dh);;
+      sw = Math.min(sw, self.MAXROOM);
+      sh = Math.min(sh, self.MAXROOM);
+      rw = dw - sw;
+      rh = dh - sh;
+      let rx = randRange(0, rw) + self.MAPMERGIN;
+      let ry = randRange(0, rh) + self.MAPMERGIN;
+      let left = div.outer.left + rx;
+      let right = left + sw;
+      let top = div.outer.top + ry;
+      let bottom = top + sh;
+      div.room.set(left, top, right, bottom);
+      self.fillRoom(div.room);
+    });
+  },
+  fillRoom: function(r){
+    this.layer.fillRectLTRB(r.left, r.top, r.right, r.bottom, 1);
+  },
+  connectRooms: function(){
+    let self = this;
+    (this.divList.length-1).times(function(i){
+      let a = self.divList[i];
+      let b = self.divList[i+1];
+      let iscreated = false;
+      self.createRoad(a, b, false);
+      if(randRange(0, 3) > 0){
+        return;
+      }
+      (self.divList.length-i-2).times(function(j){
+        if(!iscreated){
+          let c = self.divList[j+i+2];
+          if(self.createRoad(a, c, true)){
+            iscreated = true;
+            return;
+          }
+        }
+      });
+    });
+  },
+  createRoad: function(divA, divB, isGrandChild){
+    if(divA.outer.bottom == divB.outer.top || divA.outer.top == divB.outer.bottom){
+      let x1 = randRange(divA.room.left, divA.room.right);
+      let x2 = randRange(divB.room.left, divB.room.right);
+      let y = 0;
+      if(isGrandChild){
+        if(divA.road){ x1 = divA.road.left; }
+        if(divB.road){ x2 = divB.road.left; }
+      }
+      if(divA.outer.top > divB.outer.top){
+        y = divA.outer.top;
+        divA.createRoad(x1, y+1, x1+1, divA.room.top);
+        divB.createRoad(x2, divB.room.bottom, x2+1, y);
+      }else{
+        y = divB.outer.top;
+        divA.createRoad(x1, divA.room.bottom, x1+1, y);
+        divB.createRoad(x2, y, x2+1, divB.room.top);
+      }
+      this.fillRoom(divA.road);
+      this.fillRoom(divB.road);
+      this.fillHLine(x1, x2, y);
+      return true;
+    }
+    if(divA.outer.left == divB.outer.right || divA.outer.right == divB.outer.left){
+      let y1 = randRange(divA.room.top, divA.room.bottom);
+      let y2 = randRange(divB.room.top, divB.room.bottom);
+      let x = 0;
+      if(isGrandChild){
+        if(divA.road){ y1 = divA.road.top; }
+        if(divB.road){ y2 = divB.road.top; }
+      }
+      if(divA.outer.left > divB.outer.left){
+        x = divA.outer.left;
+        divB.createRoad(divB.room.right, y2, x, y2 + 1);
+        divA.createRoad(x + 1, y1, divA.room.left, y1 + 1);
+      }else{
+        x = divB.outer.left;
+        divA.createRoad(divA.room.right, y1, x, y1 + 1);
+        divB.createRoad(x, y2, divB.room.left, y2 + 1);
+      }
+      this.fillRoom(divA.road);
+      this.fillRoom(divB.road);
+      this.fillVLine(y1, y2, x);
+      return true;
+    }
+    return false;
+  },
+  fillHLine: function(left, right, y){
+    if(left > right){
+      let tmp = left;
+      left = right;
+      right = tmp;
+    }
+    this.layer.fillRectLTRB(left, y, right + 1, y + 1, 1);
+  },
+  fillVLine: function(top, bottom, x){
+    if(top > bottom){
+      let tmp = top;
+      top = bottom;
+      bottom = tmp;
+    }
+    this.layer.fillRectLTRB(x, top, x + 1, bottom + 1, 1);
+  },
+});
+/*
  * マップチップクラス
  */
+phina.define("MapChip", {
+  // 継承
+  superClass: 'Sprite',
+  // コンストラクタ
+  init: function() {
+    // 親クラス初期化
+    this.superInit("mapchip", DRAWSIZE, DRAWSIZE);
+    this.width=DRAWSIZE;
+    this.height=DRAWSIZE
+    this.num = 4;
+    this.fill="black";
+    this.stroke="black";
+    this.scaleX = 0.64;
+    this.scaleY = 0.64;
+    this.ss = FrameAnimation('mapchip_ss')
+      .attachTo(this).gotoAndPlay(MAPCHIPNAME[this.num]);
+  },
+  setChip: function(num, x, y){
+    if(num==0){
+      this.setPosition(x, y);
+      this.num = num;
+    }else if(num==1){
+      this.setPosition(x, y);
+      this.num = num;
+    }else if(num==2){
+      this.setPosition(x, y);
+      this.num = num;
+    }else if(num==4){
+      this.setPosition(x, y);
+      this.num = num;
+    }else{
+      this.setPosition(x, y);
+      this.num = 3;
+    }
+    this.ss.gotoAndPlay(MAPCHIPNAME[this.num]);
+  }
+});
+/*
 phina.define("MapChip", {
   // 継承
   superClass: 'RectangleShape',
@@ -571,7 +1011,7 @@ phina.define("MapChip", {
     this.sprite.scaleX = 0.64;
     this.sprite.scaleY = 0.64;
     this.ss = FrameAnimation('mapchip_ss')
-      .attachTo(this.sprite).gotoAndPlay(mapchip[this.num]);
+      .attachTo(this.sprite).gotoAndPlay(MAPCHIPNAME[this.num]);
     this.label = new Label().addChildTo(this);
   },
   setChip: function(num, x, y){
@@ -613,7 +1053,7 @@ phina.define("MapChip", {
     }
 //    console.log(this.num);
   //        console.log("spanX:"+spanX+", span:"+(self.gridX.span(spanX-4)-subx))
-    this.ss.gotoAndPlay(mapchip[this.num]);
+    this.ss.gotoAndPlay(MAPCHIPNAME[this.num]);
     this.label.text = ""+this.num;
     this.label.hide();
   //        ""+(spanX+self.camera.gridX-GRIDWIDTH/2-4)+","+(spanY+self.camera.gridY-(GRIDHEIGHT-1)/2-1);
@@ -929,12 +1369,11 @@ phina.define("Actor", {
         this.move();
         break;
       case eAct.Move:
-        if(!this.tweener.playing&&this.ss.finished){
+        if(!this.tweener.playing){
           this.act = eAct.MoveEnd;
         }
         break;
       case eAct.MoveEnd:
-        this.ss.paused = true;
         this.act = eAct.TurnEnd;
         break;
       case eAct.TurnEnd:
@@ -996,6 +1435,10 @@ phina.define("Actor", {
     }
     return val;
   },
+  mapping: function(){
+    let pos = this.getGridPosition(false);
+    this.field.mappingMinimap(pos.x, pos.y, this.direction);
+  },
   setParams: function(lv, isRefresh){
     if(lv>20){
       lv = 20;
@@ -1043,7 +1486,7 @@ phina.define("Actor", {
     if(isNextPos){
       return new Pos2D(this.nextPos.x, this.nextPos.y);
     }
-    return new Pos2D(this.px, this.py);
+    return new Pos2D(Math.round(this.px), Math.round(this.py));
   },
   getDirection: function(){
     return this.direction;
@@ -1107,7 +1550,7 @@ phina.define("Actor", {
   },
   actEnd: function(isAction){
     if(isAction){
-      let atkplace = DirUtillMove(new Pos2D(this.px, this.py), this.direction);
+      let atkplace = DirUtillMove(this.getGridPosition(false), this.direction);
       let atkedactor = this.field.getFieldActor(atkplace.x, atkplace.y);
       if(atkedactor){
         let player = this.getPlayer();
@@ -1123,7 +1566,7 @@ phina.define("Actor", {
   },
   moveBegin: function(dir){
     this.direction = dir;
-    this.nextPos = DirUtillMove(new Pos2D(this.px, this.py), this.direction);
+    this.nextPos = DirUtillMove(this.getGridPosition(false), this.direction);
     if(!this.isCollide(this.nextPos.x, this.nextPos.y)){
       this.act = eAct.MoveBegin;
     }else{
@@ -1132,7 +1575,7 @@ phina.define("Actor", {
   },
   move: function(){
     this.act = eAct.Move;
-    if(this.field.isScreenView(this.x, this.y)){
+    if(this.ss.paused){
       this.ss.gotoAndPlay(this.direction);
     }
     switch(this.direction){
@@ -1190,48 +1633,48 @@ phina.define("Actor", {
     if(this.field.isScreenView(this.x, this.y)){
       this.tweener.clear();
       this.tweener.to({
-        wx:this.wx-DRAWSIZE,
-        px:this.px-1,
-        },800,"default");
+        wx:this.nextPos.x*DRAWSIZE,
+        px:this.nextPos.x,
+        },600,"default");
     }else{
       this.wx -= DRAWSIZE;
-      this.px -= 1;
+      this.px--;
     }
   },
   moveRight: function(){
     if(this.field.isScreenView(this.x, this.y)){
       this.tweener.clear();
       this.tweener.to({
-        wx:this.wx+DRAWSIZE,
-        px:this.px+1,
-        },800,"default");
+        wx:this.nextPos.x*DRAWSIZE,
+        px:this.nextPos.x,
+        },600,"default");
     }else{
       this.wx += DRAWSIZE;
-      this.px += 1;
+      this.px++;
     }
   },
   moveUp: function(){
     if(this.field.isScreenView(this.x, this.y)){
       this.tweener.clear();
       this.tweener.to({
-        wy:this.wy-DRAWSIZE,
-        py:this.py-1,
-        },800,"default");
+        wy:this.nextPos.y*DRAWSIZE,
+        py:this.nextPos.y,
+        },600,"default");
     }else{
       this.wy -= DRAWSIZE;
-      this.py -= 1;
+      this.py--;
     }
   },
   moveDown: function(){
     if(this.field.isScreenView(this.x, this.y)){
       this.tweener.clear();
       this.tweener.to({
-        wy:this.wy+DRAWSIZE,
-        py:this.py+1,
-        },800,"default");
+        wy:this.nextPos.y*DRAWSIZE,
+        py:this.nextPos.y,
+        },600,"default");
     }else{
       this.wy += DRAWSIZE;
-      this.py += 1;
+      this.py++;
     }
   },
   loadData: function(status){
@@ -1258,7 +1701,7 @@ phina.define("Player", {
 //    this.setScale(2);
     this.satiety = stt;
 //    this.inventoryItems = [1,2,1,2,1,3,4,3,1,2,1,2];
-    this.inventory = new ActorInventory(1);
+    this.inventory = new ActorInventory(10);
     this.equipment = new ActorEquipment();
     this.isAction = false;
     this.superMethod("setCameraCenter", true);
@@ -1268,9 +1711,10 @@ phina.define("Player", {
     this.superMethod("update");
   },
   proc: function(app){
+    let key;
     switch(this.superMethod("getAct")){
       case eAct.KeyInput:
-        let key = app.keyboard;
+        key = app.keyboard;
 //        let pos = this.superMethod("getGridPosition", false);
         if (key.getKey(eDir.Left)) {
           this.superMethod("moveBegin", eDir.Left);
@@ -1304,7 +1748,8 @@ phina.define("Player", {
         if (key.getKeyDown(eKey.Load)) {
           savedata.loadData(JSON.parse(localStorage.getItem('GameData')));
         }
-        this.resetDirection();
+        this.superMethod("mapping");
+        this.superMethod("resetDirection");
         break;
       case eAct.OpenInventory:
         inventory.proc(app);
@@ -1331,12 +1776,11 @@ phina.define("Player", {
           let params = this.superMethod("getParams");
           if(params.hp < 1){
             this.superMethod("setHitImg");
-            this.removeActor();
+            this.superMethod("removeAcor");
           }
         }
         break;
       case eAct.MoveEnd:
-        this.superMethod("proc");
         if(this.satiety.value > 0){
           this.superMethod("addHp", 3);
           this.satiety.value-=0.25;
@@ -1348,7 +1792,7 @@ phina.define("Player", {
           let params = this.superMethod("getParams");
           if(params.hp < 1){
             this.superMethod("setHitImg");
-            this.removeActor();
+            this.superMethod("removeAcor");
           }
         }
         break;
@@ -1420,11 +1864,11 @@ phina.define("Player", {
         this.equipment.accessory = ivtidx;
         break;
     }
+    message.readText(6, data.name);
     data.name = "Ｅ"+data.name;
     data.isEquip = true;
     this.equipment.extParams.str += atk;
     this.equipment.extParams.def += def;
-    message.readText(6, data.name);
   },
   removeEquipment: function(ivtidx){
     this.isAction = false;
@@ -1621,7 +2065,7 @@ phina.define("Enemy", {
     if(dir){
       this.superMethod("actBegin", dir);
     }else{
-      dir = this.getNextMoveDir();
+      dir = this.getAstarNextMoveDir();
       this.superMethod("moveBegin", dir);
     }
   },
@@ -1648,7 +2092,106 @@ phina.define("Enemy", {
     }
     return;
   },
-  getNextMoveDir: function(){
+  getAstarNextMoveDir: function(){
+    let field = this.superMethod("getField");
+    let ppos = this.superMethod("getPlayer").getGridPosition(true);
+    let epos = this.superMethod("getGridPosition", false);
+    let nodes = 
+      Array2D(new Array(field.map.w*field.map.h).fill(null), field.map.w, field.map.h);
+    let openlist = [];
+    let dx = Math.abs(ppos.x - epos.x);
+    let dy = Math.abs(ppos.y - epos.y);
+    let node = new Node(epos.x, epos.y);
+    nodes.set(node.x, node.y, node);
+    node.st = eNodeStatus.Open;
+    node.acost = 0;
+    node.ecost = dx + dy;
+    node.score = node.acost+node.ecost;
+    node.pnode = null;
+    node = this.astar(nodes, openlist, node, ppos, field);
+    let nodelist = [];
+    let nx, ny;
+    this.getNodes(nodelist, node);
+    if(nodelist.length<2){
+      nx = nodelist[0].x;
+      ny = nodelist[0].y;
+    }else{
+      nx = nodelist[nodelist.length-2].x;
+      ny = nodelist[nodelist.length-2].y;
+    }
+    let dir = eDir.Left;
+    if(nx > epos.x){
+      dir = eDir.Right;
+    }
+    if(ny < epos.y){
+      dir = eDir.Up;
+    }
+    if(ny > epos.y){
+      dir = eDir.Down;
+    }
+    return dir;
+  },
+  astar: function(nodes, openlist, pnode, ppos, field){
+    let openid = 0;
+    let self = this;
+    let flag = false;
+    let node;
+    pnode.st = eNodeStatus.Closed;
+    (NODEOPENPOS.length).times(function(i){
+      if(!flag){
+        node = nodes.get(pnode.x+NODEOPENPOS[i][0], pnode.y+NODEOPENPOS[i][1]);
+        if(!node){
+          let nx = pnode.x+NODEOPENPOS[i][0];
+          let ny = pnode.y+NODEOPENPOS[i][1];
+          node = new Node(nx, ny);
+          if(nx == ppos.x && ny == ppos.y){
+            node.pnode = pnode;
+            flag = true;
+            return;
+          }
+          nodes.set(node.x, node.y, node);
+          if(enemy = self.superMethod("isCollide", node.x, node.y, self)){
+            node.st = eNodeStatus.Closed;
+          }else{
+            let dx = Math.abs(ppos.x - node.x);
+            let dy = Math.abs(ppos.y - node.y);
+            node.st = eNodeStatus.Open;
+            node.acost = pnode.acost + 1;
+            node.ecost = dx + dy;
+            node.score = node.acost+node.ecost;
+            node.pnode = pnode;
+            openlist.push(node);
+          }
+        }
+      }
+    });
+    if(flag){
+      return node;
+    }
+    (openlist.length-1).times(function(i){
+      if(openlist[openid].score > openlist[i+1].score){
+        openid = i+1;
+        return;
+      }
+      if(openlist[openid].score==openlist[i+1].score){
+        openid = openlist[openid].acost > openlist[i+1].acost ? i+1:openid;
+      }
+    });
+    if(openlist.length<1){
+      return pnode;
+    }
+    pnode = openlist[openid];
+    openlist.splice(openid, 1);
+    return this.astar(nodes, openlist, pnode, ppos, field);
+  },
+  getNodes: function(list, node){
+    if(node){
+      list.push(node);
+      return this.getNodes(list, node.pnode);
+    }
+    return;
+  },
+  getSimpleNextMoveDir: function(){
     let ppos = this.superMethod("getPlayer").getGridPosition(false);
     let epos = this.superMethod("getGridPosition", false);
     // プレイヤーへの距離を求める
@@ -2760,6 +3303,7 @@ phina.define("SaveData", {
     });
     this.gamedata.mapFloor = this.main.field.map;
     this.gamedata.mapCollision = this.main.field.collision;
+    this.gamedata.minimap = this.main.field.minimap;
     localStorage.setItem('GameData', JSON.stringify(this.gamedata));
 //    jsontext = JSON.stringify(this.gamedata);
     message.addText("セーブしました", "red");
@@ -2781,6 +3325,8 @@ phina.define("SaveData", {
       new Array2D(obj.mapFloor.data, obj.mapFloor.w, obj.mapFloor.h);
     this.gamedata.mapCollision = 
       new Array2D(obj.mapCollision.data, obj.mapCollision.w, obj.mapCollision.h);
+    this.gamedata.minimap = 
+      new Array2D(obj.minimap.data, obj.minimap.w, obj.minimap.h);
     (this.main.enemies.length).times(function(i){
       self.main.enemies[i].remove();
     });
@@ -2859,7 +3405,39 @@ phina.define("SaveData", {
     }
   },
 });
+phina.namespace(function() {
+  var ASSET_TYPE = 'dungeon';
 
+  phina.define('phina.asset.Dungeon', {
+    superClass: "phina.asset.Asset",
+
+    /**
+     * @constructor
+     */
+    init: function() {
+      this.superInit();
+    },
+
+    _load: function(resolve) {
+      let self = this;
+      let taskA = new Promise(function(resolve, reject){
+        self.data = DgGenerator(30, 40, 12, 3, 3, 2, 3);
+        resolve(self.data);
+      });
+      let taskB = new Promise(function(resolve, reject){
+        self.data.start();
+        resolve(self.data);
+      });
+      Promise.all([taskA, taskB]).then(function(data){
+        resolve(data);
+      });
+    },
+  });
+
+  phina.asset.AssetLoader.register(ASSET_TYPE, function(key, path){
+    return phina.asset.Dungeon().load();
+  });
+});
 phina.main(function() {
   var app = GameApp({
 //    assets: ASSETS,
